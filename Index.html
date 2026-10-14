@@ -1,0 +1,2631 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Nexus Studio</title>
+<style>
+    * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+    :root {
+        --bg: #0a0a0f; --panel: #14141c; --panel-2: #1c1c28; --panel-3: #242432;
+        --border: #2c2c3e; --border-hi: #3d3d55;
+        --ink: #f0f0ff; --ink-dim: #8a8aa0; --ink-faint: #5a5a70;
+        --success: #22c55e; --error: #ef4444; --warn: #f59e0b; --info: #3b82f6;
+        --violet: #8b5cf6; --violet-hi: #a78bfa; --cyan: #06b6d4; --rose: #ec4899;
+        --radius: 12px;
+        --mono: ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+    }
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif;
+        background: radial-gradient(ellipse 80% 50% at 50% -20%, #1a1030 0%, #0a0a0f 60%);
+        color: var(--ink); min-height: 100vh;
+        padding: 0 0 10rem; font-size: 15px; line-height: 1.5;
+    }
+    .app { max-width: 1100px; margin: 0 auto; padding: 1rem; }
+    header { margin-bottom: 1rem; text-align: center; padding-top: 0.5rem; }
+    h1 {
+        font-size: 1.7rem; font-weight: 800; margin-bottom: 0.2rem;
+        background: linear-gradient(135deg, #a78bfa, #06b6d4, #ec4899);
+        -webkit-background-clip: text; background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
+    .subtitle { font-size: 0.78rem; color: var(--ink-dim); }
+    .tabs {
+        display: flex; gap: 0.35rem; margin-bottom: 0.85rem;
+        overflow-x: auto; padding: 0.3rem; border-radius: var(--radius);
+        scrollbar-width: none; position: sticky; top: 0; z-index: 40;
+        background: rgba(20,20,28,0.95); backdrop-filter: blur(14px);
+        border: 1px solid var(--border);
+    }
+    .tabs::-webkit-scrollbar { display: none; }
+    .tab {
+        flex-shrink: 0; padding: 0.6rem 1rem; border-radius: 8px;
+        background: transparent; border: 1px solid transparent;
+        color: var(--ink-dim); font-size: 0.78rem; font-weight: 700;
+        font-family: inherit; cursor: pointer; transition: all 0.2s;
+        white-space: nowrap; display: flex; align-items: center; gap: 0.4rem;
+    }
+    .tab:hover { color: var(--ink); background: var(--panel-2); }
+    .tab.active {
+        background: linear-gradient(135deg, var(--violet), var(--violet-hi));
+        color: #fff; box-shadow: 0 4px 12px rgba(139,92,246,0.3);
+    }
+    .module { display: none; }
+    .module.active { display: block; animation: fadeIn 0.3s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    .toast {
+        position: fixed; top: 5rem; left: 50%; transform: translateX(-50%) translateY(-140px);
+        background: var(--panel-2); color: var(--ink);
+        padding: 0.8rem 1.3rem; border-radius: 10px;
+        font-size: 0.85rem; font-weight: 500;
+        box-shadow: 0 8px 30px rgba(0,0,0,0.6); border: 1px solid var(--violet);
+        z-index: 1000; opacity: 0;
+        transition: transform 0.35s ease, opacity 0.35s ease;
+        max-width: 90vw; text-align: center;
+    }
+    .toast.visible { transform: translateX(-50%) translateY(0); opacity: 1; }
+    .toast.success { border-color: var(--success); }
+    .toast.error { border-color: var(--error); }
+    .toast.warn { border-color: var(--warn); }
+    .section {
+        background: var(--panel); border: 1px solid var(--border);
+        border-radius: var(--radius); margin-bottom: 0.85rem; overflow: hidden;
+    }
+    .section-header {
+        padding: 0.9rem 1.1rem; cursor: pointer; user-select: none;
+        display: flex; justify-content: space-between; align-items: center;
+        background: linear-gradient(135deg, rgba(139,92,246,0.06), transparent);
+    }
+    .section-title {
+        font-size: 0.8rem; font-weight: 700; display: flex; align-items: center; gap: 0.5rem;
+    }
+    .section-title .badge {
+        font-size: 0.62rem; padding: 0.15rem 0.5rem; border-radius: 10px;
+        background: var(--violet); color: #fff; font-weight: 700; text-transform: uppercase;
+    }
+    .section-title .badge.ok { background: var(--success); }
+    .section-title .badge.soft { background: var(--info); }
+    .chevron { font-size: 0.7rem; color: var(--ink-faint); transition: transform 0.25s; }
+    .section.open .chevron { transform: rotate(180deg); }
+    .section-body { max-height: 0; overflow: hidden; transition: max-height 0.4s ease; }
+    .section.open .section-body { max-height: 12000px; }
+    .section-content { padding: 0 1.1rem 1.1rem; }
+    .info-banner {
+        background: linear-gradient(135deg, rgba(139,92,246,0.12), rgba(6,182,212,0.12));
+        border-left: 3px solid var(--violet);
+        padding: 0.85rem 1rem; border-radius: 8px;
+        font-size: 0.78rem; color: #d0d0e8; margin-bottom: 0.85rem; line-height: 1.5;
+    }
+    .info-banner strong { color: #fff; }
+    .btn {
+        width: 100%; padding: 0.85rem 1rem; border-radius: 10px; border: none;
+        font-size: 0.88rem; font-weight: 700; font-family: inherit;
+        cursor: pointer; transition: opacity 0.2s, transform 0.1s;
+        display: flex; align-items: center; justify-content: center; gap: 0.5rem;
+    }
+    .btn:active:not(:disabled) { transform: scale(0.98); }
+    .btn:disabled { opacity: 0.35; cursor: not-allowed; }
+    .btn-primary { background: linear-gradient(135deg, var(--violet), var(--violet-hi)); color: #fff; }
+    .btn-cyan { background: linear-gradient(135deg, #0891b2, var(--cyan)); color: #fff; }
+    .btn-rose { background: linear-gradient(135deg, #be185d, var(--rose)); color: #fff; }
+    .btn-secondary { background: var(--panel-2); color: var(--ink); border: 1px solid var(--border-hi); }
+    .btn-sm { padding: 0.55rem 0.9rem; font-size: 0.78rem; width: auto; }
+    .btn-row { display: flex; gap: 0.5rem; margin-top: 0.6rem; flex-wrap: wrap; }
+    .btn-row .btn { flex: 1; min-width: 140px; }
+    .btn-stop { background: var(--panel-2); color: var(--error); border: 1px solid var(--error); margin-top: 0.5rem; display: none; }
+    .btn-stop.visible { display: flex; }
+    textarea, input[type="text"], input[type="password"], select {
+        width: 100%; padding: 0.75rem 0.9rem; border-radius: 9px;
+        border: 1px solid var(--border); background: var(--panel-2);
+        color: var(--ink); font-family: inherit; font-size: 0.86rem;
+        line-height: 1.5; resize: vertical;
+    }
+    textarea:focus, input:focus, select:focus {
+        outline: none; border-color: var(--violet);
+        box-shadow: 0 0 0 3px rgba(139,92,246,0.15);
+    }
+    textarea { min-height: 80px; }
+    select { -webkit-appearance: none; appearance: none;
+        background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path fill='%238a8aa0' d='M0 0l5 6 5-6z'/></svg>");
+        background-repeat: no-repeat; background-position: right 0.9rem center;
+        cursor: pointer;
+    }
+    .field-label {
+        display: block; font-size: 0.68rem; color: var(--ink-dim);
+        margin-bottom: 0.4rem; text-transform: uppercase;
+        letter-spacing: 0.08em; font-weight: 700;
+    }
+    .field { margin-bottom: 0.85rem; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.7rem; }
+    .grid-3 { display: grid; grid-template-columns: 1fr auto auto; gap: 0.5rem; align-items: stretch; }
+    @media (max-width: 540px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } }
+    .api-row { display: flex; gap: 0.5rem; margin-bottom: 0.5rem; }
+    .api-key-input {
+        flex: 1; padding: 0.75rem 0.9rem; border-radius: 8px;
+        border: 1px solid var(--border); background: var(--panel-2);
+        color: var(--ink); font-family: var(--mono); font-size: 0.8rem; min-width: 0;
+    }
+    .api-save-btn {
+        padding: 0 1.1rem; border-radius: 8px; border: none;
+        background: linear-gradient(135deg, var(--violet), var(--violet-hi));
+        color: #fff; font-size: 0.82rem; font-weight: 700;
+        font-family: inherit; cursor: pointer; white-space: nowrap;
+    }
+    .api-status-line {
+        font-size: 0.7rem; padding: 0.5rem 0.75rem; border-radius: 6px;
+        margin-bottom: 0.4rem; display: flex; align-items: center; gap: 0.5rem;
+        background: var(--panel-2); color: var(--ink-dim); font-family: var(--mono);
+    }
+    .api-status-line.ok { background: rgba(34,197,94,0.12); color: var(--success); }
+    .api-status-line .status-dot {
+        width: 7px; height: 7px; border-radius: 50%;
+        background: var(--ink-faint); flex-shrink: 0;
+    }
+    .api-status-line.ok .status-dot { background: var(--success); box-shadow: 0 0 8px var(--success); }
+    .output-box {
+        background: var(--panel-2); border: 1px solid var(--border);
+        border-radius: 9px; padding: 0.95rem 1rem;
+        font-size: 0.85rem; line-height: 1.6; color: var(--ink);
+        white-space: pre-wrap; word-wrap: break-word; min-height: 60px;
+    }
+    .output-box.empty {
+        color: var(--ink-faint); font-style: italic;
+        display: flex; align-items: center; justify-content: center; text-align: center;
+    }
+    .output-box.story {
+        font-family: 'Georgia', serif; font-size: 0.88rem; line-height: 1.75;
+    }
+    .upload-zone {
+        border: 2px dashed var(--border-hi); border-radius: var(--radius);
+        padding: 1.6rem 1rem; text-align: center; cursor: pointer;
+        transition: all 0.2s; background: var(--panel-2); margin-bottom: 0.85rem;
+    }
+    .upload-zone:hover { border-color: var(--violet); }
+    .upload-zone input[type="file"] { display: none; }
+    .upload-icon { font-size: 1.9rem; margin-bottom: 0.4rem; }
+    .upload-text { font-size: 0.88rem; font-weight: 600; margin-bottom: 0.1rem; }
+    .upload-hint { font-size: 0.7rem; color: var(--ink-dim); }
+    .images-grid {
+        display: grid; grid-template-columns: repeat(auto-fill, minmax(75px, 1fr));
+        gap: 0.45rem; margin-bottom: 0.85rem;
+    }
+    .image-card {
+        position: relative; border-radius: 8px; overflow: hidden;
+        border: 1px solid var(--border); background: var(--panel-3);
+        aspect-ratio: 9/16; cursor: pointer;
+    }
+    .image-card:hover { border-color: var(--violet); }
+    .image-card.uploaded { border-color: var(--success); }
+    .image-card.assigned { border-color: var(--cyan); }
+    .image-card.assigned::after {
+        content: attr(data-scene); position: absolute; top: 3px; left: 3px;
+        background: var(--cyan); color: #0a0a0f; font-size: 0.58rem;
+        font-weight: 800; padding: 0.1rem 0.35rem; border-radius: 6px;
+    }
+    .image-card img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .image-card .remove-btn {
+        position: absolute; top: 3px; right: 3px;
+        background: rgba(0,0,0,0.7); color: #fff; border: none;
+        width: 20px; height: 20px; border-radius: 50%; font-size: 10px;
+        cursor: pointer; display: flex; align-items: center; justify-content: center;
+    }
+    .image-card .upload-badge {
+        position: absolute; bottom: 3px; left: 3px;
+        background: var(--success); color: #fff;
+        font-size: 0.55rem; font-weight: 800;
+        padding: 0.1rem 0.35rem; border-radius: 6px;
+    }
+    .scene-card {
+        background: var(--panel-2); border: 1px solid var(--border);
+        border-radius: 10px; padding: 0.75rem 0.9rem;
+        display: flex; gap: 0.75rem; margin-bottom: 0.55rem;
+    }
+    .scene-card.has-image { border-color: var(--cyan); }
+    .scene-card.done { border-color: var(--success); }
+    .scene-card.failed { border-color: var(--error); }
+    .scene-num {
+        flex-shrink: 0; width: 30px; height: 30px; border-radius: 8px;
+        background: linear-gradient(135deg, var(--violet), var(--violet-hi));
+        color: #fff; display: flex; align-items: center; justify-content: center;
+        font-weight: 800; font-size: 0.78rem;
+    }
+    .scene-content { flex: 1; min-width: 0; }
+    .scene-title { font-size: 0.84rem; font-weight: 700; margin-bottom: 0.2rem; }
+    .scene-desc { font-size: 0.73rem; color: var(--ink-dim); line-height: 1.5; }
+    .scene-hook {
+        font-size: 0.72rem; color: var(--cyan);
+        margin-top: 0.4rem; padding: 0.4rem 0.55rem;
+        background: rgba(6,182,212,0.08); border-left: 2px solid var(--cyan);
+        border-radius: 4px; line-height: 1.45;
+    }
+    .scene-thumb {
+        width: 55px; aspect-ratio: 9/16; border-radius: 6px;
+        object-fit: cover; background: var(--panel-3);
+        border: 1px solid var(--border); flex-shrink: 0;
+    }
+    .scene-thumb.placeholder {
+        display: flex; align-items: center; justify-content: center;
+        font-size: 1.2rem; color: var(--ink-faint);
+    }
+    .scene-status-pill {
+        display: inline-block; font-size: 0.62rem; font-weight: 700;
+        padding: 0.15rem 0.5rem; border-radius: 10px;
+        text-transform: uppercase; margin-left: 0.4rem;
+    }
+    .pill-pending { background: var(--panel-3); color: var(--ink-dim); }
+    .pill-processing { background: rgba(139,92,246,0.2); color: var(--violet-hi); }
+    .pill-done { background: rgba(34,197,94,0.2); color: var(--success); }
+    .pill-failed { background: rgba(239,68,68,0.2); color: var(--error); }
+    .episodes-grid {
+        display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+        gap: 0.85rem;
+    }
+    .episode-card {
+        background: var(--panel-2); border: 1px solid var(--border);
+        border-radius: var(--radius); overflow: hidden;
+        display: flex; flex-direction: column;
+    }
+    .episode-card.generated { border-color: var(--success); }
+    .episode-card.processing { border-color: var(--violet); }
+    .ep-header {
+        padding: 0.7rem 0.9rem;
+        background: linear-gradient(135deg, rgba(139,92,246,0.1), transparent);
+        display: flex; align-items: center; gap: 0.6rem;
+        border-bottom: 1px solid var(--border);
+    }
+    .ep-num {
+        flex-shrink: 0; width: 32px; height: 32px; border-radius: 8px;
+        background: linear-gradient(135deg, var(--violet), var(--violet-hi));
+        color: #fff; display: flex; align-items: center; justify-content: center;
+        font-weight: 800; font-size: 0.85rem;
+    }
+    .ep-title-block { flex: 1; min-width: 0; }
+    .ep-title { font-size: 0.88rem; font-weight: 700; display: flex; align-items: center; gap: 0.4rem; }
+    .ep-body { padding: 0.85rem 0.9rem; flex: 1; display: flex; flex-direction: column; gap: 0.7rem; }
+    .ep-image-wrap {
+        aspect-ratio: 9/16; width: 100%; border-radius: 8px; overflow: hidden;
+        background: var(--panel-3); border: 1px solid var(--border);
+        display: flex; align-items: center; justify-content: center; position: relative;
+    }
+    .ep-image-wrap img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .ep-image-placeholder {
+        display: flex; flex-direction: column; align-items: center;
+        justify-content: center; gap: 0.4rem; color: var(--ink-faint);
+        font-size: 0.72rem; text-align: center; padding: 1rem;
+    }
+    .ep-image-overlay {
+        position: absolute; inset: 0; background: rgba(10,10,15,0.75);
+        display: none; align-items: center; justify-content: center;
+        flex-direction: column; gap: 0.5rem; color: #fff; font-size: 0.72rem;
+    }
+    .ep-image-wrap.processing .ep-image-overlay { display: flex; }
+    .spinner {
+        width: 22px; height: 22px; border: 3px solid rgba(139,92,246,0.3);
+        border-top-color: var(--violet); border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .ep-field { display: flex; flex-direction: column; gap: 0.25rem; }
+    .ep-field-label {
+        font-size: 0.62rem; color: var(--ink-dim); font-weight: 700;
+        text-transform: uppercase; display: flex;
+        justify-content: space-between; align-items: center;
+    }
+    .ep-field-label button {
+        font-size: 0.58rem; padding: 0.1rem 0.4rem;
+        border-radius: 5px; border: 1px solid var(--border-hi);
+        background: var(--panel-3); color: var(--ink-dim);
+        cursor: pointer; font-family: inherit;
+    }
+    .ep-field textarea { padding: 0.55rem 0.65rem; font-size: 0.72rem; min-height: 55px; }
+    .ep-field .hook-text {
+        padding: 0.55rem 0.65rem; background: rgba(6,182,212,0.08);
+        border-left: 2px solid var(--cyan); border-radius: 4px;
+        font-size: 0.72rem; font-style: italic; color: #b8e8f0; line-height: 1.45;
+    }
+    .ep-actions { display: flex; gap: 0.4rem; flex-wrap: wrap; margin-top: 0.2rem; }
+    .ep-actions .btn { width: auto; padding: 0.5rem 0.8rem; font-size: 0.72rem; }
+    .ep-badge {
+        font-size: 0.6rem; font-weight: 800;
+        padding: 0.15rem 0.45rem; border-radius: 8px;
+        background: var(--panel-3); color: var(--ink-dim); text-transform: uppercase;
+    }
+    .ep-badge.ok { background: rgba(34,197,94,0.2); color: var(--success); }
+    .ep-badge.processing { background: rgba(139,92,246,0.2); color: var(--violet-hi); }
+    .styles-grid {
+        display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 0.5rem;
+    }
+    .style-card {
+        padding: 0.7rem 0.85rem; border-radius: 8px;
+        border: 1px solid var(--border); background: var(--panel-2);
+        cursor: pointer; transition: all 0.15s;
+        display: flex; align-items: center; gap: 0.5rem;
+    }
+    .style-card.selected {
+        background: linear-gradient(135deg, var(--violet), var(--rose));
+        color: #fff; border-color: transparent;
+    }
+    .style-card .style-emoji { font-size: 1.2rem; flex-shrink: 0; }
+    .style-card .style-name { font-size: 0.78rem; font-weight: 600; line-height: 1.2; }
+    .style-card .style-desc { font-size: 0.65rem; opacity: 0.7; margin-top: 0.1rem; line-height: 1.2; }
+    .style-category-header {
+        grid-column: 1 / -1; font-size: 0.7rem; font-weight: 700;
+        color: var(--violet-hi); text-transform: uppercase;
+        padding: 0.5rem 0 0.3rem; border-bottom: 1px solid var(--border);
+        margin-bottom: 0.3rem;
+    }
+    .no-style-card {
+        grid-column: 1 / -1; padding: 0.7rem 1rem; border-radius: 8px;
+        border: 2px dashed var(--border); background: transparent;
+        text-align: center; cursor: pointer; font-size: 0.8rem; color: var(--ink-dim);
+    }
+    .no-style-card.selected {
+        border-color: var(--violet); border-style: solid;
+        background: var(--panel-2); color: var(--ink); font-weight: 600;
+    }
+    .presets-row { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.55rem; }
+    .chip {
+        padding: 0.35rem 0.7rem; border-radius: 16px;
+        border: 1px solid var(--border); background: var(--panel-2);
+        font-size: 0.68rem; cursor: pointer; color: var(--ink-dim);
+    }
+    .chip:hover { border-color: var(--violet); color: var(--ink); }
+    .gallery-grid {
+        display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 0.7rem;
+    }
+    .gallery-item {
+        border-radius: var(--radius); overflow: hidden;
+        border: 1px solid var(--border); background: #000;
+        position: relative;
+    }
+    .gallery-item video { width: 100%; display: block; aspect-ratio: 9/16; object-fit: cover; }
+    .gallery-item .g-caption {
+        padding: 0.4rem 0.6rem; background: var(--panel);
+        font-size: 0.68rem; color: var(--ink-dim);
+    }
+    .gallery-item .hook-badge {
+        position: absolute; top: 6px; left: 6px;
+        background: linear-gradient(135deg, var(--violet), var(--rose));
+        color: #fff; font-size: 0.58rem; font-weight: 800;
+        padding: 0.15rem 0.45rem; border-radius: 10px; text-transform: uppercase;
+    }
+    .global-progress {
+        position: sticky; top: 0; z-index: 50;
+        background: rgba(10,10,15,0.94); backdrop-filter: blur(14px);
+        padding: 0.6rem 1rem; margin: -1rem -1rem 0.85rem;
+        border-bottom: 1px solid var(--border);
+        display: flex; align-items: center; gap: 0.8rem;
+    }
+    .gp-label {
+        font-size: 0.62rem; color: var(--ink-dim);
+        font-weight: 700; text-transform: uppercase; flex-shrink: 0;
+    }
+    .gp-bar { flex: 1; height: 5px; background: var(--panel-3); border-radius: 4px; overflow: hidden; }
+    .gp-fill { height: 100%; width: 0%; background: linear-gradient(90deg, var(--violet), var(--cyan)); transition: width 0.4s ease; }
+    .gp-percent {
+        font-size: 0.72rem; font-family: var(--mono); color: var(--cyan);
+        font-weight: 700; flex-shrink: 0; min-width: 44px; text-align: right;
+    }
+    .status-bar {
+        position: fixed; bottom: 36px; left: 0; right: 0;
+        background: linear-gradient(135deg, #1a1030, #0a0a0f);
+        color: #fff; padding: 0.6rem 1rem; font-size: 0.75rem;
+        display: flex; align-items: center; gap: 0.6rem;
+        transform: translateY(200%); transition: transform 0.3s;
+        z-index: 150; border-top: 1px solid var(--violet); font-family: var(--mono);
+    }
+    .status-bar.visible { transform: translateY(0); }
+    .debug-console {
+        position: fixed; bottom: 0; left: 0; right: 0;
+        background: #08080c; border-top: 1px solid var(--border-hi);
+        z-index: 200; max-height: 40vh; display: flex; flex-direction: column;
+        transition: transform 0.3s ease; font-family: var(--mono);
+    }
+    .debug-console.collapsed { transform: translateY(calc(100% - 36px)); }
+    .debug-header {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 0.5rem 0.9rem;
+        background: linear-gradient(90deg, #0e0e14, #14141c);
+        border-bottom: 1px solid var(--border);
+        cursor: pointer; user-select: none; flex-shrink: 0;
+    }
+    .debug-title {
+        font-size: 0.66rem; font-weight: 700; text-transform: uppercase;
+        color: var(--violet-hi); display: flex; align-items: center; gap: 0.5rem;
+    }
+    .debug-title .dot {
+        width: 6px; height: 6px; border-radius: 50%;
+        background: var(--success); box-shadow: 0 0 6px var(--success);
+        animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+    .debug-stats { display: flex; gap: 0.8rem; font-size: 0.6rem; color: var(--ink-dim); }
+    .debug-stats strong { color: var(--cyan); }
+    .debug-actions { display: flex; gap: 0.4rem; }
+    .debug-actions button {
+        font-size: 0.6rem; padding: 0.2rem 0.45rem;
+        border-radius: 5px; border: 1px solid var(--border-hi);
+        background: var(--panel-2); color: var(--ink-dim);
+        cursor: pointer; font-family: inherit;
+    }
+    .debug-body { flex: 1; overflow-y: auto; padding: 0.5rem 0.9rem; font-size: 0.68rem; line-height: 1.5; }
+    .debug-line { padding: 0.12rem 0; display: flex; gap: 0.6rem; border-bottom: 1px solid rgba(255,255,255,0.02); }
+    .debug-time { color: var(--ink-faint); flex-shrink: 0; font-size: 0.62rem; }
+    .debug-tag { flex-shrink: 0; min-width: 52px; font-weight: 700; font-size: 0.6rem; text-transform: uppercase; }
+    .debug-tag.info { color: var(--info); }
+    .debug-tag.api { color: var(--violet-hi); }
+    .debug-tag.success { color: var(--success); }
+    .debug-tag.warn { color: var(--warn); }
+    .debug-tag.error { color: var(--error); }
+    .debug-msg { color: var(--ink-dim); word-break: break-word; flex: 1; }
+    .debug-line.success .debug-msg { color: #b8f0c4; }
+    .debug-line.error .debug-msg { color: #f0b8b8; }
+    .debug-line.warn .debug-msg { color: #f0d8b8; }
+    #noSleepCanvas, #noSleepVideo {
+        position: fixed; top: 0; left: 0; width: 1px; height: 1px;
+        opacity: 0.01; pointer-events: none; z-index: -1;
+    }
+</style>
+</head>
+<body>
+<div class="app">
+<header>
+    <h1>🌐 Nexus Studio</h1>
+    <p class="subtitle">Images IA · Vidéos IA · Upload auto — Agnes 3.0/2.5</p>
+</header>
+
+<div class="tabs" id="tabs">
+    <button class="tab active" data-tab="config">⚙️ Config</button>
+    <button class="tab" data-tab="factory">🎨 Prompt Factory</button>
+    <button class="tab" data-tab="storyforge">📖 StoryForge</button>
+    <button class="tab" data-tab="anime">🌸 Studio Anime</button>
+    <button class="tab" data-tab="hook">⚡ Hook Studio</button>
+</div>
+
+<!-- CONFIG -->
+<div class="module active" data-module="config">
+    <div class="info-banner">
+        <strong>Configuration :</strong> Clé API + modèles partagés. Les images seront <strong>automatiquement uploadées</strong> avant chaque génération vidéo.
+    </div>
+
+    <div class="section open">
+        <div class="section-header" data-toggle>
+            <span class="section-title">🔑 Clé API Agnes</span>
+            <span class="chevron">▼</span>
+        </div>
+        <div class="section-body"><div class="section-content">
+            <div class="api-row">
+                <input type="password" class="api-key-input" id="api-key-input" placeholder="sk-..." autocomplete="off">
+                <button type="button" class="api-save-btn" id="api-save-btn">Enregistrer</button>
+            </div>
+            <div class="api-status-line" id="api-status-line">
+                <span class="status-dot"></span>
+                <span id="api-status-text">Aucune clé API</span>
+            </div>
+            <div style="font-size:0.7rem; color:var(--ink-dim); margin-top:0.4rem;">
+                Clé sur <a href="https://platform.agnes-ai.com" target="_blank" style="color:var(--violet-hi);">platform.agnes-ai.com</a>
+            </div>
+        </div></div>
+    </div>
+
+    <div class="section open">
+        <div class="section-header" data-toggle>
+            <span class="section-title">💬 Modèle Chat <span class="badge soft">histoire · scénario</span></span>
+            <span class="chevron">▼</span>
+        </div>
+        <div class="section-body"><div class="section-content">
+            <div class="grid-3">
+                <select id="chat-model-select">
+                    <option value="agnes-3.0-flash" selected>agnes-3.0-flash ⚡</option>
+                    <option value="agnes-3.0-flash-max">agnes-3.0-flash-max 🚀</option>
+                    <option value="agnes-2.5-pro">agnes-2.5-pro 🧠</option>
+                    <option value="agnes-2.5-pro-alpha">agnes-2.5-pro-alpha</option>
+                    <option value="agnes-2.5-pro-beta">agnes-2.5-pro-beta</option>
+                    <option value="agnes-2.5-flash">agnes-2.5-flash</option>
+                    <option value="__custom__">✏️ Autre…</option>
+                </select>
+                <button type="button" class="api-save-btn" id="chat-test-btn">✓</button>
+            </div>
+            <input type="text" class="api-key-input" id="custom-chat-model" placeholder="Nom exact du modèle" style="display:none; margin-top:0.4rem;">
+            <div class="api-status-line" id="chat-model-status" style="margin-top:0.5rem;">
+                <span class="status-dot"></span>
+                <span id="chat-model-text">Modèle chat prêt</span>
+            </div>
+        </div></div>
+    </div>
+
+    <div class="section open">
+        <div class="section-header" data-toggle>
+            <span class="section-title">🖼️ Modèle Image <span class="badge soft">Prompt Factory</span></span>
+            <span class="chevron">▼</span>
+        </div>
+        <div class="section-body"><div class="section-content">
+            <div class="grid-3">
+                <select id="image-model-select">
+                    <option value="agnes-image-2.5-flash" selected>agnes-image-2.5-flash ⚡</option>
+                    <option value="agnes-image-2.1-flash">agnes-image-2.1-flash</option>
+                    <option value="agnes-image-2.0-flash">agnes-image-2.0-flash</option>
+                    <option value="__custom__">✏️ Autre…</option>
+                </select>
+                <button type="button" class="api-save-btn" id="img-test-btn">✓</button>
+            </div>
+            <input type="text" class="api-key-input" id="custom-image-model" placeholder="Nom exact" style="display:none; margin-top:0.4rem;">
+            <div class="api-status-line" id="img-model-status" style="margin-top:0.5rem;">
+                <span class="status-dot"></span>
+                <span id="img-model-text">Modèle image prêt</span>
+            </div>
+        </div></div>
+    </div>
+
+    <div class="section open">
+        <div class="section-header" data-toggle>
+            <span class="section-title">🎬 Modèle Vidéo <span class="badge soft">tous les modules</span></span>
+            <span class="chevron">▼</span>
+        </div>
+        <div class="section-body"><div class="section-content">
+            <div class="grid-3">
+                <select id="video-model-select">
+                    <option value="agnes-video-2.5-flash" selected>agnes-video-2.5-flash ⚡</option>
+                    <option value="agnes-video-2.5">agnes-video-2.5 🎬</option>
+                    <option value="__custom__">✏️ Autre…</option>
+                </select>
+                <button type="button" class="api-save-btn" id="vid-test-btn">✓</button>
+            </div>
+            <input type="text" class="api-key-input" id="custom-video-model" placeholder="Nom exact" style="display:none; margin-top:0.4rem;">
+            <div class="api-status-line" id="vid-model-status" style="margin-top:0.5rem;">
+                <span class="status-dot"></span>
+                <span id="vid-model-text">Modèle vidéo prêt</span>
+            </div>
+            <button type="button" id="vid-debug-btn" style="margin-top:0.5rem; width:100%; padding:0.6rem; border-radius:8px; border:1px solid var(--warn); background:transparent; color:var(--warn); font-size:0.78rem; font-weight:700; cursor:pointer; font-family:inherit;">
+                🐛 DEBUG VIDÉO
+            </button>
+        </div></div>
+    </div>
+
+    <div class="section open">
+        <div class="section-header" data-toggle>
+            <span class="section-title">📤 Upload d'images <span class="badge ok">AUTO</span></span>
+            <span class="chevron">▼</span>
+        </div>
+        <div class="section-body"><div class="section-content">
+            <div class="info-banner" style="margin-bottom:0.5rem;">
+                Les images sont uploadées automatiquement vers <strong>catbox.moe</strong> avant chaque vidéo (obligatoire pour Agnes).
+            </div>
+            <div class="api-status-line" id="uploader-status">
+                <span class="status-dot"></span>
+                <span id="uploader-text">Prêt — clique sur ✓ pour tester</span>
+            </div>
+            <button type="button" class="btn btn-cyan btn-sm" id="test-upload-btn" style="margin-top:0.5rem;">
+                🧪 Tester l'upload
+            </button>
+        </div></div>
+    </div>
+
+    <div class="section">
+        <div class="section-header" data-toggle>
+            <span class="section-title">💤 Anti-veille</span>
+            <span class="chevron">▼</span>
+        </div>
+        <div class="section-body"><div class="section-content">
+            <div style="padding:0.5rem 0.7rem; border-radius:6px; display:flex; justify-content:space-between; align-items:center; background:rgba(59,130,246,0.12); color:var(--info); flex-wrap:wrap; gap:0.4rem;" id="wake-status">
+                <span id="wake-status-text">💤 Veille auto</span>
+                <button type="button" id="wake-toggle-btn" style="background:transparent; border:1px solid currentColor; color:inherit; padding:0.25rem 0.6rem; border-radius:6px; font-size:0.65rem; cursor:pointer; font-family:inherit;">Garder l'écran allumé</button>
+            </div>
+        </div></div>
+    </div>
+</div>
+
+<!-- PROMPT FACTORY -->
+<div class="module" data-module="factory">
+    <div class="global-progress">
+        <span class="gp-label">Images</span>
+        <div class="gp-bar"><div class="gp-fill" id="pf-progress"></div></div>
+        <span class="gp-percent" id="pf-percent">0/10</span>
+    </div>
+    <div class="info-banner">
+        <strong>Fragments d'un monde oublié — 10 épisodes.</strong> Génère, uploade, exporte.
+    </div>
+    <div class="section open">
+        <div class="section-header" data-toggle>
+            <span class="section-title">⚙️ Réglages</span>
+            <span class="chevron">▼</span>
+        </div>
+        <div class="section-body"><div class="section-content">
+            <div class="grid-2">
+                <div class="field">
+                    <label class="field-label">Résolution</label>
+                    <select id="pf-resolution">
+                        <option value="512x1024">512×1024</option>
+                        <option value="1024x1024" selected>1024×1024</option>
+                        <option value="1024x1792">1024×1792</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label class="field-label">Qualité</label>
+                    <select id="pf-quality">
+                        <option value="standard" selected>Standard</option>
+                        <option value="hd">HD</option>
+                    </select>
+                </div>
+            </div>
+            <div class="btn-row">
+                <button class="btn btn-primary" id="pf-generate-all">🎨 Générer</button>
+                <button class="btn btn-stop" id="pf-stop-all">⏹ Arrêter</button>
+            </div>
+            <div class="btn-row">
+                <button class="btn btn-cyan btn-sm" id="pf-export-json">📥 Export JSON</button>
+                <button class="btn btn-secondary btn-sm" id="pf-download-all">💾 Télécharger</button>
+                <button class="btn btn-secondary btn-sm" id="pf-reset-all">🗑️ Effacer</button>
+            </div>
+        </div></div>
+    </div>
+    <div class="section open">
+        <div class="section-header" data-toggle>
+            <span class="section-title">🎬 Les 10 épisodes <span class="badge" id="pf-ep-badge">0/10</span></span>
+            <span class="chevron">▼</span>
+        </div>
+        <div class="section-body"><div class="section-content">
+            <div class="episodes-grid" id="pf-episodes-grid"></div>
+        </div></div>
+    </div>
+</div>
+
+<!-- STORYFORGE -->
+<div class="module" data-module="storyforge">
+    <div class="global-progress">
+        <span class="gp-label">Progression</span>
+        <div class="gp-bar"><div class="gp-fill" id="sf-progress"></div></div>
+        <span class="gp-percent" id="sf-percent">0%</span>
+    </div>
+    <div class="info-banner">
+        <strong>5 étapes :</strong> Histoire → Scénario → Images → Réglages → Vidéos.
+    </div>
+    <div class="section open">
+        <div class="section-header" data-toggle>
+            <span class="section-title">📥 Importer JSON</span>
+            <span class="chevron">▼</span>
+        </div>
+        <div class="section-body"><div class="section-content">
+            <button class="btn btn-secondary" id="sf-import-json">📥 Importer un JSON</button>
+            <input type="file" id="sf-import-file" accept=".json" style="display:none;">
+        </div></div>
+    </div>
+    <div class="section open">
+        <div class="section-header" data-toggle>
+            <span class="section-title">1️⃣ Histoire</span>
+            <span class="chevron">▼</span>
+        </div>
+        <div class="section-body"><div class="section-content">
+            <div class="field">
+                <label class="field-label">Thème</label>
+                <textarea id="sf-story-prompt" placeholder="Ex: Un détective fatigué découvre…"></textarea>
+            </div>
+            <div class="grid-2">
+                <div class="field">
+                    <label class="field-label">Genre</label>
+                    <select id="sf-genre">
+                        <option value="science-fiction">Science-fiction</option>
+                        <option value="polar">Polar</option>
+                        <option value="fantasy" selected>Fantasy</option>
+                        <option value="horreur">Horreur</option>
+                        <option value="romance">Romance</option>
+                        <option value="aventure">Aventure</option>
+                        <option value="cyberpunk">Cyberpunk</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label class="field-label">Longueur</label>
+                    <select id="sf-length">
+                        <option value="court">Courte</option>
+                        <option value="moyen" selected>Moyenne</option>
+                        <option value="long">Longue</option>
+                    </select>
+                </div>
+            </div>
+            <button class="btn btn-primary" id="sf-gen-story">✨ Générer histoire</button>
+            <div style="margin-top:0.7rem;">
+                <div class="output-box empty story" id="sf-story-output">Prêt…</div>
+            </div>
+        </div></div>
+    </div>
+    <div class="section">
+        <div class="section-header" data-toggle>
+            <span class="section-title">2️⃣ Scénario</span>
+            <span class="chevron">▼</span>
+        </div>
+        <div class="section-body"><div class="section-content">
+            <button class="btn btn-cyan" id="sf-gen-script">🎬 Générer scénario</button>
+            <div style="margin-top:0.7rem;">
+                <div class="output-box empty" id="sf-script-output">…</div>
+            </div>
+            <div id="sf-script-scenes" style="margin-top:0.85rem;"></div>
+        </div></div>
+    </div>
+    <div class="section">
+        <div class="section-header" data-toggle>
+            <span class="section-title">3️⃣ Images</span>
+            <span class="chevron">▼</span>
+        </div>
+        <div class="section-body"><div class="section-content">
+            <div class="upload-zone" id="sf-upload-zone">
+                <input type="file" id="sf-file-input" accept="image/*" multiple>
+                <div class="upload-icon">📸</div>
+                <div class="upload-text">Ajouter des images</div>
+                <div class="upload-hint">Elles seront uploadées automatiquement avant la vidéo</div>
+            </div>
+            <div class="images-grid" id="sf-images-grid"></div>
+            <div id="sf-scene-mapping" style="margin-top:0.5rem;"></div>
+            <div class="btn-row">
+                <button class="btn btn-secondary btn-sm" id="sf-auto-map">🎯 Auto-map</button>
+                <button class="btn btn-secondary btn-sm" id="sf-clear-map">🗑️ Effacer</button>
+                <button class="btn btn-cyan btn-sm" id="sf-upload-all">📤 Uploader toutes</button>
+            </div>
+        </div></div>
+    </div>
+    <div class="section">
+        <div class="section-header" data-toggle>
+            <span class="section-title">4️⃣ Réglages</span>
+            <span class="chevron">▼</span>
+        </div>
+        <div class="section-body"><div class="section-content">
+            <div class="field">
+                <label class="field-label">🎨 Style</label>
+                <select id="sf-style">
+                    <option value="cinematic">Cinématique</option>
+                    <option value="golden-hour">Golden Hour</option>
+                    <option value="noir">Film Noir</option>
+                    <option value="neon">Néon Urbain</option>
+                    <option value="dreamy">Onirique</option>
+                    <option value="vintage">Vintage</option>
+                    <option value="epic">Épique</option>
+                    <option value="minimal">Minimaliste</option>
+                    <option value="natural">Naturel</option>
+                    <option value="random">🎲 Aléatoire</option>
+                </select>
+            </div>
+            <div class="grid-2">
+                <div class="field">
+                    <label class="field-label">⏱️ Durée</label>
+                    <select id="sf-duration">
+                        <option value="73">3 s</option>
+                        <option value="97">4 s</option>
+                        <option value="121" selected>5 s</option>
+                        <option value="153">6,4 s</option>
+                        <option value="241">10 s</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label class="field-label">📐 Résolution</label>
+                    <select id="sf-resolution">
+                        <option value="480p">480p</option>
+                        <option value="720p" selected>720p</option>
+                        <option value="1080p">1080p</option>
+                    </select>
+                </div>
+            </div>
+            <div class="grid-2">
+                <div class="field">
+                    <label class="field-label">💨 Intensité</label>
+                    <select id="sf-intensity">
+                        <option value="subtle">Subtile</option>
+                        <option value="moderate" selected>Modérée</option>
+                        <option value="strong">Forte</option>
+                        <option value="random">🎲 Aléatoire</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label class="field-label">📷 Cadrage</label>
+                    <select id="sf-framing">
+                        <option value="close">Gros plan</option>
+                        <option value="medium" selected>Moyen</option>
+                        <option value="wide">Large</option>
+                        <option value="random">🎲 Aléatoire</option>
+                    </select>
+                </div>
+            </div>
+            <div class="field">
+                <label class="field-label">🎥 Prompt additionnel</label>
+                <textarea id="sf-extra-prompt" placeholder="…"></textarea>
+            </div>
+        </div></div>
+    </div>
+    <div class="section open">
+        <div class="section-header" data-toggle>
+            <span class="section-title">5️⃣ Vidéos</span>
+            <span class="chevron">▼</span>
+        </div>
+        <div class="section-body"><div class="section-content">
+            <button class="btn btn-rose" id="sf-generate-all">🎬 Générer vidéos</button>
+            <button class="btn btn-stop" id="sf-stop-all">⏹ Arrêter</button>
+            <div style="margin-top:0.85rem;">
+                <div class="gallery-grid" id="sf-gallery"></div>
+                <div class="output-box empty" id="sf-gallery-empty" style="margin-top:0.5rem;">
+                    Les vidéos apparaîtront ici…
+                </div>
+            </div>
+        </div></div>
+    </div>
+</div>
+
+<!-- STUDIO ANIME -->
+<div class="module" data-module="anime">
+    <div class="info-banner">
+        <strong>Studio Anime :</strong> Transforme tes images en vidéos anime.
+    </div>
+    <div class="upload-zone" id="an-upload-zone">
+        <input type="file" id="an-file-input" accept="image/*" multiple>
+        <div class="upload-icon">🌸</div>
+        <div class="upload-text">Ajouter des images</div>
+        <div class="upload-hint">Upload auto avant génération</div>
+    </div>
+    <div class="images-grid" id="an-images-grid"></div>
+    <div class="section open">
+        <div class="section-header" data-toggle>
+            <span class="section-title">✍️ Vision</span>
+            <span class="chevron">▼</span>
+        </div>
+        <div class="section-body"><div class="section-content">
+            <textarea id="an-main-prompt" style="min-height:100px;" placeholder="Ex: Fin d'été japonais, ciel avec cumulus…"></textarea>
+            <div class="presets-row" id="an-prompt-presets"></div>
+        </div></div>
+    </div>
+    <div class="section open">
+        <div class="section-header" data-toggle>
+            <span class="section-title">🎨 Style anime</span>
+            <span class="chevron">▼</span>
+        </div>
+        <div class="section-body"><div class="section-content">
+            <div class="styles-grid" id="an-styles-grid"></div>
+        </div></div>
+    </div>
+    <div class="section">
+        <div class="section-header" data-toggle>
+            <span class="section-title">⚙️ Réglages</span>
+            <span class="chevron">▼</span>
+        </div>
+        <div class="section-body"><div class="section-content">
+            <div class="grid-2">
+                <div class="field">
+                    <label class="field-label">Durée</label>
+                    <select id="an-duration">
+                        <option value="121">5 s</option>
+                        <option value="153" selected>6,4 s</option>
+                        <option value="241">10 s</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label class="field-label">Résolution</label>
+                    <select id="an-resolution">
+                        <option value="480p">480p</option>
+                        <option value="720p" selected>720p</option>
+                        <option value="1080p">1080p</option>
+                    </select>
+                </div>
+            </div>
+        </div></div>
+    </div>
+    <button class="btn btn-primary" id="an-generate">🌸 Créer vidéos anime</button>
+    <button class="btn btn-stop" id="an-stop">⏹ Arrêter</button>
+    <div style="margin-top:0.85rem;">
+        <div class="gallery-grid" id="an-gallery"></div>
+    </div>
+</div>
+
+<!-- HOOK STUDIO -->
+<div class="module" data-module="hook">
+    <div class="info-banner">
+        <strong>Hook Studio :</strong> Hooks viraux 3-5s pour TikTok.
+    </div>
+    <div class="upload-zone" id="hk-upload-zone">
+        <input type="file" id="hk-file-input" accept="image/*" multiple>
+        <div class="upload-icon">⚡</div>
+        <div class="upload-text">Ajouter des visuels</div>
+        <div class="upload-hint">Upload auto avant génération</div>
+    </div>
+    <div class="images-grid" id="hk-images-grid"></div>
+    <div class="section open">
+        <div class="section-header" data-toggle>
+            <span class="section-title">✍️ Accroche</span>
+            <span class="chevron">▼</span>
+        </div>
+        <div class="section-body"><div class="section-content">
+            <textarea id="hk-main-prompt" style="min-height:90px;" placeholder="Ex: Un regard qui fixe la caméra…"></textarea>
+            <div class="presets-row" id="hk-prompt-presets"></div>
+        </div></div>
+    </div>
+    <div class="section open">
+        <div class="section-header" data-toggle>
+            <span class="section-title">🎯 Archétype</span>
+            <span class="chevron">▼</span>
+        </div>
+        <div class="section-body"><div class="section-content">
+            <div class="styles-grid" id="hk-styles-grid"></div>
+        </div></div>
+    </div>
+    <div class="section">
+        <div class="section-header" data-toggle>
+            <span class="section-title">⚙️ Réglages</span>
+            <span class="chevron">▼</span>
+        </div>
+        <div class="section-body"><div class="section-content">
+            <div class="grid-2">
+                <div class="field">
+                    <label class="field-label">Durée</label>
+                    <select id="hk-duration">
+                        <option value="73">3 s</option>
+                        <option value="97" selected>4 s</option>
+                        <option value="121">5 s</option>
+                    </select>
+                </div>
+                <div class="field">
+                    <label class="field-label">Intensité</label>
+                    <select id="hk-intensity">
+                        <option value="strong" selected>Forte</option>
+                        <option value="moderate">Modérée</option>
+                        <option value="subtle">Subtile</option>
+                        <option value="random">Aléatoire</option>
+                    </select>
+                </div>
+            </div>
+        </div></div>
+    </div>
+    <button class="btn btn-rose" id="hk-generate">⚡ Générer hooks</button>
+    <button class="btn btn-stop" id="hk-stop">⏹ Arrêter</button>
+    <div style="margin-top:0.85rem;">
+        <div class="gallery-grid" id="hk-gallery"></div>
+    </div>
+</div>
+
+</div>
+
+<div class="status-bar" id="status-bar">
+    <span id="status-text">Préparation…</span>
+</div>
+
+<div class="toast" id="toast">
+    <span id="toast-icon">✓</span>
+    <span id="toast-text">Message</span>
+</div>
+
+<div class="debug-console collapsed" id="debug-console">
+    <div class="debug-header" id="debug-header">
+        <div class="debug-title">
+            <span class="dot"></span> Console
+        </div>
+        <div class="debug-stats">
+            <span>API : <strong id="dbg-api">0</strong></span>
+            <span>Err : <strong id="dbg-error">0</strong></span>
+        </div>
+        <div class="debug-actions">
+            <button id="dbg-clear">Effacer</button>
+            <button id="dbg-toggle">▲</button>
+        </div>
+    </div>
+    <div class="debug-body" id="debug-body"></div>
+</div>
+
+<canvas id="noSleepCanvas" width="2" height="2"></canvas>
+<video id="noSleepVideo" playsinline muted loop></video>
+
+<script>
+/* ═══ CONFIG ═══ */
+const API_BASE = 'https://apihub.agnes-ai.com/v1';
+const POLL_BASE = 'https://apihub.agnes-ai.com/agnesapi';
+
+// Upload hosts (fallback dans l'ordre)
+const UPLOAD_HOSTS = [
+    {
+        name: 'catbox',
+        url: 'https://catbox.moe/user/api.php',
+        upload: async (blob, filename) => {
+            const fd = new FormData();
+            fd.append('reqtype', 'fileupload');
+            fd.append('fileToUpload', blob, filename);
+            const res = await fetch('https://catbox.moe/user/api.php', {
+                method: 'POST', body: fd
+            });
+            if (!res.ok) throw new Error('catbox HTTP ' + res.status);
+            const txt = await res.text();
+            if (!txt.startsWith('http')) throw new Error('catbox réponse invalide: ' + txt.slice(0, 100));
+            return txt.trim();
+        }
+    },
+    {
+        name: '0x0.st',
+        url: 'https://0x0.st',
+        upload: async (blob, filename) => {
+            const fd = new FormData();
+            fd.append('file', blob, filename);
+            const res = await fetch('https://0x0.st', {
+                method: 'POST', body: fd,
+                headers: { 'User-Agent': 'NexusStudio/1.0' }
+            });
+            if (!res.ok) throw new Error('0x0 HTTP ' + res.status);
+            const txt = await res.text();
+            if (!txt.startsWith('http')) throw new Error('0x0 réponse invalide');
+            return txt.trim();
+        }
+    },
+    {
+        name: 'tmpfiles.org',
+        url: 'https://tmpfiles.org/api/v1/upload',
+        upload: async (blob, filename) => {
+            const fd = new FormData();
+            fd.append('file', blob, filename);
+            const res = await fetch('https://tmpfiles.org/api/v1/upload', {
+                method: 'POST', body: fd
+            });
+            if (!res.ok) throw new Error('tmpfiles HTTP ' + res.status);
+            const data = await res.json();
+            if (!data.data?.url) throw new Error('tmpfiles réponse invalide');
+            return data.data.url.replace('tmpfiles.org/', 'tmpfiles.org/dl/');
+        }
+    }
+];
+
+const CHAT_MODEL_DEFAULT = 'agnes-3.0-flash';
+const CHAT_MODEL_FALLBACKS = ['agnes-3.0-flash','agnes-3.0-flash-max','agnes-2.5-flash','agnes-2.5-pro','agnes-2.5-pro-alpha','agnes-2.5-pro-beta'];
+const IMAGE_MODEL_DEFAULT = 'agnes-image-2.5-flash';
+const IMAGE_MODEL_FALLBACKS = ['agnes-image-2.5-flash','agnes-image-2.1-flash','agnes-image-2.0-flash'];
+const VIDEO_MODEL_DEFAULT = 'agnes-video-2.5-flash';
+const VIDEO_MODEL_FALLBACKS = ['agnes-video-2.5-flash','agnes-video-2.5'];
+const FRAME_RATE = 24;
+const POLL_INTERVAL_SEC = 7;
+const MAX_POLL_ATTEMPTS = 100;
+const CHAT_TIMEOUT_MS = 25000;
+const MAX_IMAGE_SIZE = 12 * 1024 * 1024;
+const THUMBNAIL_MAX_WIDTH = 200;
+const KEY_STORAGE = 'agnes_api_key';
+const CHAT_STORE = 'agnes_chat_model';
+const IMG_STORE = 'agnes_image_model';
+const VID_STORE = 'agnes_video_model';
+const WAKE_PREF = 'agnes_wakelock_enabled';
+
+/* ═══ UTILS ═══ */
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const randomItem = arr => arr[Math.floor(Math.random() * arr.length)];
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const formatTime = () => new Date().toTimeString().slice(0, 8);
+
+function extractJSONFromText(raw) {
+    if (!raw) throw new Error('Réponse vide');
+    const codeBlock = raw.match(/```(?:json)?\s*([\s\S]*?)```/i);
+    if (codeBlock && codeBlock[1]) return codeBlock[1].trim();
+    const firstBrace = raw.indexOf('{');
+    const lastBrace = raw.lastIndexOf('}');
+    if (firstBrace !== -1 && lastBrace > firstBrace) return raw.slice(firstBrace, lastBrace + 1).trim();
+    return raw.replace(/`/g, '').trim();
+}
+
+/* ═══ DEBUG ═══ */
+const debugCounts = { info: 0, api: 0, success: 0, warn: 0, error: 0 };
+function dbg(tag, message) {
+    const body = document.getElementById('debug-body');
+    if (!body) return;
+    const line = document.createElement('div');
+    line.className = 'debug-line ' + tag;
+    line.innerHTML =
+        '<span class="debug-time">' + formatTime() + '</span>' +
+        '<span class="debug-tag ' + tag + '">' + tag + '</span>' +
+        '<span class="debug-msg">' + esc(message) + '</span>';
+    body.appendChild(line);
+    if (debugCounts[tag] !== undefined) debugCounts[tag]++;
+    const a = document.getElementById('dbg-api');
+    const e = document.getElementById('dbg-error');
+    if (a) a.textContent = debugCounts.api;
+    if (e) e.textContent = debugCounts.error;
+    while (body.children.length > 400) body.removeChild(body.firstChild);
+    const consoleEl = document.getElementById('debug-console');
+    if (consoleEl && !consoleEl.classList.contains('collapsed')) body.scrollTop = body.scrollHeight;
+}
+
+/* ═══ TOAST / STATUS ═══ */
+let toastTimeout = null;
+function showToast(message, type = 'success', duration = 2500) {
+    const toast = document.getElementById('toast');
+    if (!toast) return;
+    toast.classList.remove('visible', 'success', 'error', 'warn');
+    void toast.offsetWidth;
+    const icons = { success: '✓', error: '✕', warn: '⚠' };
+    document.getElementById('toast-icon').textContent = icons[type] || '✓';
+    document.getElementById('toast-text').textContent = message;
+    toast.classList.add(type);
+    requestAnimationFrame(() => toast.classList.add('visible'));
+    if (toastTimeout) clearTimeout(toastTimeout);
+    toastTimeout = setTimeout(() => toast.classList.remove('visible'), duration);
+}
+function setStatus(text) {
+    const bar = document.getElementById('status-bar');
+    const txt = document.getElementById('status-text');
+    if (!bar) return;
+    if (text) { bar.classList.add('visible'); txt.textContent = text; }
+    else bar.classList.remove('visible');
+}
+
+/* ═══ TABS ═══ */
+function initTabs() {
+    const tabs = document.querySelectorAll('.tab');
+    const modules = document.querySelectorAll('.module');
+    const saved = localStorage.getItem('nexus_tab') || 'config';
+    const activate = (name) => {
+        tabs.forEach(t => t.classList.toggle('active', t.dataset.tab === name));
+        modules.forEach(m => m.classList.toggle('active', m.dataset.module === name));
+        localStorage.setItem('nexus_tab', name);
+        window.scrollTo(0, 0);
+    };
+    tabs.forEach(t => t.addEventListener('click', () => activate(t.dataset.tab)));
+    activate(saved);
+}
+
+/* ═══ STORAGE ═══ */
+const getApiKey = () => { try { return (localStorage.getItem(KEY_STORAGE) || '').trim(); } catch (e) { return ''; } };
+const getChatModel = () => { try { return (localStorage.getItem(CHAT_STORE) || '').trim() || CHAT_MODEL_DEFAULT; } catch (e) { return CHAT_MODEL_DEFAULT; } };
+const getImageModel = () => { try { return (localStorage.getItem(IMG_STORE) || '').trim() || IMAGE_MODEL_DEFAULT; } catch (e) { return IMAGE_MODEL_DEFAULT; } };
+const getVideoModel = () => { try { return (localStorage.getItem(VID_STORE) || '').trim() || VIDEO_MODEL_DEFAULT; } catch (e) { return VIDEO_MODEL_DEFAULT; } };
+
+function saveApiKey() {
+    const key = document.getElementById('api-key-input').value.trim();
+    if (!key) { try { localStorage.removeItem(KEY_STORAGE); } catch (e) {} updateApiPanel(); showToast('Clé supprimée', 'warn'); return; }
+    try { localStorage.setItem(KEY_STORAGE, key); updateApiPanel(); showToast('Clé enregistrée ✓', 'success'); dbg('success', 'Clé API enregistrée'); }
+    catch (e) { showToast('Erreur', 'error'); }
+}
+function updateApiPanel() {
+    const line = document.getElementById('api-status-line');
+    const text = document.getElementById('api-status-text');
+    const input = document.getElementById('api-key-input');
+    const key = getApiKey();
+    if (key) { line.classList.add('ok'); text.textContent = '✅ Clé active · ' + key.slice(0, 8) + '…' + key.slice(-4); input.value = key; }
+    else { line.classList.remove('ok'); text.textContent = 'Aucune clé API'; input.value = ''; }
+}
+function updateModelStatus(which, type, message) {
+    const line = document.getElementById(which + '-model-status');
+    const text = document.getElementById(which + '-model-text');
+    if (!line || !text) return;
+    line.classList.remove('ok');
+    if (type === 'ok') line.classList.add('ok');
+    text.textContent = message;
+}
+
+/* ═══ UPLOADER AUTOMATIQUE ═══ */
+const uploadCache = new Map(); // dataUri → url publique
+
+async function dataUriToBlob(dataUri) {
+    const res = await fetch(dataUri);
+    return await res.blob();
+}
+
+async function uploadToPublicHost(dataUri, filename = 'image.png') {
+    // Vérifier le cache
+    if (uploadCache.has(dataUri)) {
+        dbg('info', '📤 Déjà uploadé (cache) → ' + uploadCache.get(dataUri).slice(0, 60) + '…');
+        return uploadCache.get(dataUri);
+    }
+
+    const blob = await dataUriToBlob(dataUri);
+    let lastError = null;
+
+    for (const host of UPLOAD_HOSTS) {
+        try {
+            dbg('api', '📤 Upload vers ' + host.name + ' (' + (blob.size / 1024).toFixed(0) + ' KB)…');
+            const url = await host.upload(blob, filename);
+            dbg('success', '✅ Upload OK → ' + url);
+            uploadCache.set(dataUri, url);
+            return url;
+        } catch (e) {
+            dbg('warn', '❌ ' + host.name + ' échoue : ' + e.message);
+            lastError = e;
+        }
+    }
+
+    throw new Error('Tous les hébergeurs ont échoué. ' + (lastError?.message || ''));
+}
+
+async function testUploader() {
+    const line = document.getElementById('uploader-status');
+    const text = document.getElementById('uploader-text');
+    line.classList.remove('ok');
+    text.textContent = '⏳ Test en cours…';
+    dbg('info', '🧪 Test uploader…');
+
+    // Mini image 1x1 PNG
+    const tiny = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+
+    try {
+        const url = await uploadToPublicHost(tiny, 'test.png');
+        line.classList.add('ok');
+        text.textContent = '✅ Upload OK → ' + url.slice(0, 50) + '…';
+        showToast('Upload OK ✓', 'success');
+    } catch (e) {
+        text.textContent = '❌ Échec upload : ' + e.message.slice(0, 60);
+        showToast('Upload échoue', 'error');
+    }
+}
+
+/* ═══ TEST MODÈLE ═══ */
+async function testModel(kind) {
+    const model = kind === 'image' ? getImageModel() : kind === 'vid' ? getVideoModel() : getChatModel();
+    if (!getApiKey()) { showToast('Enregistre la clé API', 'warn'); return; }
+    updateModelStatus(kind, 'check', '⏳ Test…');
+    try {
+        let res;
+        if (kind === 'image') {
+            res = await fetch(API_BASE + '/images/generations', {
+                method: 'POST',
+                headers: { 'Authorization': 'Bearer ' + getApiKey(), 'Content-Type': 'application/json' },
+                body: JSON.stringify({ model, prompt: 'red circle on white', size: '1024x1024', n: 1 })
+            });
+        } else if (kind === 'vid') {
+            res = await fetch(API_BASE + '/models', { headers: { 'Authorization': 'Bearer ' + getApiKey() } });
+            if (res.ok) {
+                const data = await res.json();
+                const all = (data.data || data.models || []).map(m => m.id || m.name || m);
+                if (!all.includes(model)) throw new Error('Modèle non listé');
+            }
+        } else {
+            res = await fetch(API_BASE + '/chat/completions', {
+                method: 'POST',
+                headers: { 'Authorization': 'Bearer ' + getApiKey(), 'Content-Type': 'application/json' },
+                body: JSON.stringify({ model, messages: [{ role: 'user', content: 'OK?' }], max_tokens: 5 })
+            });
+        }
+        if (!res.ok) { const err = await res.text(); throw new Error('HTTP ' + res.status + ' — ' + err.slice(0, 120)); }
+        updateModelStatus(kind, 'ok', '✅ "' + model + '" fonctionne');
+        showToast('OK ✓', 'success');
+    } catch (e) {
+        updateModelStatus(kind, 'err', '❌ "' + model + '" — ' + e.message.slice(0, 60));
+        dbg('error', 'Test ' + kind + ' : ' + e.message);
+        showToast('Échec', 'error');
+    }
+}
+
+/* ═══ DEBUG VIDÉO ═══ */
+async function debugVideoFormats() {
+    if (!getApiKey()) { showToast('Clé manquante', 'warn'); return; }
+    const model = getVideoModel();
+    dbg('info', '═══ DEBUG VIDÉO : ' + model + ' ═══');
+
+    // On uploade d'abord une mini image
+    const tiny = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+    let tinyUrl;
+    try {
+        tinyUrl = await uploadToPublicHost(tiny, 'debug.png');
+        dbg('success', 'Image test uploadée : ' + tinyUrl);
+    } catch (e) {
+        dbg('error', 'Upload impossible : ' + e.message);
+        showToast('Upload échoue — vérifie ta connexion', 'error');
+        return;
+    }
+
+    const variants = [
+        { label: 'A: keyframe + first_frame + seconds', body: { model, prompt: 'test', mode: 'keyframe', first_frame: tinyUrl, seconds: '5', size: '720P', aspect_ratio: '9:16' } },
+        { label: 'B: keyframe + image + seconds', body: { model, prompt: 'test', mode: 'keyframe', image: tinyUrl, seconds: '5' } },
+        { label: 'C: image2video + image', body: { model, prompt: 'test', mode: 'image2video', image: tinyUrl } },
+        { label: 'D: reference + first_frame', body: { model, prompt: 'test', mode: 'reference', first_frame: tinyUrl, seconds: '5' } },
+        { label: 'E: keyframe minimal', body: { model, prompt: 'test', mode: 'keyframe', image: tinyUrl } },
+        { label: 'F: text (sans image)', body: { model, prompt: 'test', mode: 'text', seconds: '5' } }
+    ];
+
+    for (const v of variants) {
+        dbg('api', '🧪 ' + v.label);
+        try {
+            const res = await fetch(API_BASE + '/videos', {
+                method: 'POST',
+                headers: { 'Authorization': 'Bearer ' + getApiKey(), 'Content-Type': 'application/json' },
+                body: JSON.stringify(v.body)
+            });
+            const txt = await res.text();
+            if (res.ok) {
+                const data = JSON.parse(txt);
+                const vid = data.video_id || data.id || data.task_id;
+                if (vid) {
+                    dbg('success', '✅ FONCTIONNE : ' + v.label);
+                    dbg('success', 'Body : ' + JSON.stringify(v.body).slice(0, 250));
+                    showToast('✅ ' + v.label, 'success', 5000);
+                    return;
+                }
+            }
+            dbg('warn', '   ❌ ' + res.status + ' : ' + txt.slice(0, 180));
+        } catch (e) { dbg('error', '   ⚠️ ' + e.message); }
+        await sleep(2000);
+    }
+    dbg('warn', '═══ Fin debug — aucun format OK ═══');
+    showToast('Aucun format OK — voir console', 'warn', 5000);
+}
+
+/* ═══ CHAT ═══ */
+async function chatCompletion(systemPrompt, userPrompt) {
+    const primary = getChatModel();
+    const tryOrder = [primary, ...CHAT_MODEL_FALLBACKS.filter(m => m !== primary)].filter((m, i, a) => a.indexOf(m) === i);
+    let lastError = null;
+    for (let i = 0; i < tryOrder.length; i++) {
+        const model = tryOrder[i];
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), CHAT_TIMEOUT_MS);
+        try {
+            dbg('api', '💬 Chat → ' + model);
+            const res = await fetch(API_BASE + '/chat/completions', {
+                method: 'POST',
+                headers: { 'Authorization': 'Bearer ' + getApiKey(), 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    model,
+                    messages: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userPrompt }],
+                    temperature: 0.85
+                }),
+                signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+            if (res.status === 404 || res.status === 400 || res.status === 503 || res.status === 502) {
+                lastError = new Error('Modèle indisponible'); continue;
+            }
+            if (res.status === 429) { await sleep(8000); continue; }
+            if (!res.ok) { lastError = new Error('HTTP ' + res.status); continue; }
+            const data = await res.json();
+            const content = data.choices?.[0]?.message?.content;
+            if (!content) { lastError = new Error('Réponse vide'); continue; }
+            if (model !== primary) {
+                localStorage.setItem(CHAT_STORE, model);
+                const sel = document.getElementById('chat-model-select');
+                if (sel) sel.value = model;
+            }
+            updateModelStatus('chat', 'ok', '✅ Actif : ' + model);
+            return content;
+        } catch (e) {
+            clearTimeout(timeoutId);
+            lastError = e;
+        }
+    }
+    throw new Error('Chat échoué : ' + (lastError?.message || ''));
+}
+
+/* ═══ IMAGE ═══ */
+function extractImageUrl(data) {
+    if (!data) return null;
+    if (data.data && Array.isArray(data.data) && data.data[0]) {
+        return data.data[0].url || (data.data[0].b64_json ? 'data:image/png;base64,' + data.data[0].b64_json : null);
+    }
+    if (Array.isArray(data.images) && data.images[0]) {
+        const img = data.images[0];
+        return typeof img === 'string' ? img : (img.url || (img.b64_json ? 'data:image/png;base64,' + img.b64_json : null));
+    }
+    if (Array.isArray(data.output) && data.output[0]) {
+        const out = data.output[0];
+        return typeof out === 'string' ? out : (out.url || null);
+    }
+    return data.url || data.image || data.image_url || null;
+}
+
+async function generateImage(prompt, opts = {}) {
+    const headers = { 'Authorization': 'Bearer ' + getApiKey(), 'Content-Type': 'application/json' };
+    const modelsToTry = [getImageModel(), ...IMAGE_MODEL_FALLBACKS.filter(m => m !== getImageModel())].filter((m, i, a) => a.indexOf(m) === i);
+    const size = opts.size || '1024x1024';
+    let lastError = null;
+    for (const model of modelsToTry) {
+        dbg('api', '🎨 Image → ' + model);
+        for (let attempt = 0; attempt < 2; attempt++) {
+            if (attempt > 0) await sleep(4000);
+            try {
+                const res = await fetch(API_BASE + '/images/generations', {
+                    method: 'POST', headers,
+                    body: JSON.stringify({ model, prompt, size, n: 1 })
+                });
+                const txt = await res.text();
+                if (res.ok) {
+                    try {
+                        const data = JSON.parse(txt);
+                        const url = extractImageUrl(data);
+                        if (url) {
+                            dbg('success', '✅ Image OK (' + model + ')');
+                            localStorage.setItem(IMG_STORE, model);
+                            const sel = document.getElementById('image-model-select');
+                            if (sel) sel.value = model;
+                            return url;
+                        }
+                    } catch (e) {}
+                }
+                if (txt.includes('No available channel') || txt.includes('model_not_found')) {
+                    lastError = new Error('Canal indisponible : ' + model);
+                    break;
+                }
+                lastError = new Error('HTTP ' + res.status);
+                if (res.status === 429) await sleep(8000);
+            } catch (e) { lastError = e; }
+        }
+    }
+    throw new Error('Image échouée : ' + (lastError?.message || ''));
+}
+
+/* ═══ VIDÉO — Upload auto + format Agnes 2.5 ═══ */
+async function createVideoTask(imageDataUri, prompt, opts = {}) {
+    const model = getVideoModel();
+    const seconds = String(Math.max(4, Math.min(12, Math.round((opts.durationFrames || 121) / FRAME_RATE))));
+    const aspectRatio = opts.aspectRatio || '9:16';
+
+    // 1️⃣ UPLOADER L'IMAGE
+    let imageUrl;
+    try {
+        dbg('info', '📤 Upload image avant vidéo…');
+        imageUrl = await uploadToPublicHost(imageDataUri, 'frame.png');
+    } catch (e) {
+        throw new Error('Upload image échoué : ' + e.message);
+    }
+
+    // 2️⃣ Appel vidéo
+    const body = {
+        model,
+        prompt,
+        mode: 'keyframe',
+        first_frame: imageUrl,
+        seconds,
+        size: '720P',
+        aspect_ratio: aspectRatio
+    };
+
+    dbg('api', '🎬 POST /videos → ' + model + ' | ' + seconds + 's | ' + aspectRatio);
+    dbg('api', '   first_frame : ' + imageUrl);
+
+    const res = await fetch(API_BASE + '/videos', {
+        method: 'POST',
+        headers: { 'Authorization': 'Bearer ' + getApiKey(), 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+    });
+    const txt = await res.text();
+    dbg('api', '← ' + res.status + ' : ' + txt.slice(0, 200));
+
+    if (!res.ok) {
+        throw new Error('HTTP ' + res.status + ' — ' + txt.slice(0, 200));
+    }
+    const data = JSON.parse(txt);
+    const videoId = data.video_id || data.id || data.task_id || data.taskId;
+    if (!videoId) throw new Error('Pas de video_id');
+    dbg('success', '✅ Tâche créée : ' + String(videoId).slice(0, 40));
+    return videoId;
+}
+
+async function pollVideo(videoId, onProgress) {
+    const videoModel = getVideoModel();
+    let remaining = 15;
+    while (remaining > 0) {
+        onProgress('Init… ' + remaining + 's');
+        await sleep(1000);
+        remaining--;
+    }
+    for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt++) {
+        if (attempt > 0) {
+            let r = POLL_INTERVAL_SEC;
+            while (r > 0) { onProgress('Rendu… ' + r + 's'); await sleep(1000); r--; }
+        }
+        const url = POLL_BASE + '?video_id=' + encodeURIComponent(videoId) + '&model_name=' + encodeURIComponent(videoModel);
+        let res, d;
+        try {
+            res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + getApiKey() } });
+            if (!res.ok) { continue; }
+            d = await res.json();
+        } catch (e) { continue; }
+        const status = d.status || 'unknown';
+        const progress = d.progress || 0;
+        onProgress('Rendu ' + progress + '%');
+        dbg('info', 'Poll → ' + status + ' (' + progress + '%)');
+        if (status === 'completed' || status === 'succeeded' || status === 'done') {
+            const u = (d.metadata && d.metadata.url) || d.url || (d.output && d.output.url) || (d.video && d.video.url) || d.video_url;
+            if (!u) throw new Error('Pas d\'URL vidéo');
+            return u;
+        }
+        if (status === 'failed' || status === 'error' || status === 'cancelled') {
+            throw new Error('Échec : ' + (d.error?.message || d.message || status));
+        }
+    }
+    throw new Error('Timeout polling');
+}
+
+/* ═══ IMAGES UTILS ═══ */
+function fileToDataUri(file) {
+    return new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = e => resolve(e.target.result);
+        r.onerror = () => reject(new Error('Lecture'));
+        r.readAsDataURL(file);
+    });
+}
+function generateThumbnail(dataUri) {
+    return new Promise(resolve => {
+        const img = new Image();
+        img.onload = () => {
+            try {
+                const canvas = document.createElement('canvas');
+                const ratio = img.height / img.width;
+                canvas.width = THUMBNAIL_MAX_WIDTH;
+                canvas.height = Math.round(THUMBNAIL_MAX_WIDTH * ratio);
+                canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+                resolve(canvas.toDataURL('image/jpeg', 0.7));
+            } catch (e) { resolve(dataUri); }
+        };
+        img.onerror = () => resolve(dataUri);
+        img.src = dataUri;
+    });
+}
+async function processOneFile(file) {
+    if (!file.type.startsWith('image/')) return null;
+    if (file.size > MAX_IMAGE_SIZE) { dbg('warn', 'Image trop lourde'); return null; }
+    try {
+        const dataUri = await fileToDataUri(file);
+        const thumbnail = await generateThumbnail(dataUri);
+        return { id: Date.now() + Math.random(), name: file.name, dataUri, thumbnail, sceneIndex: null, publicUrl: null };
+    } catch (e) { return null; }
+}
+
+/* ═══ ANTI-VEILLE ═══ */
+let wakeLockSentinel = null, wakeLockEnabled = false;
+async function activateWakeLock() {
+    try {
+        if ('wakeLock' in navigator && navigator.wakeLock.request) {
+            wakeLockSentinel = await navigator.wakeLock.request('screen');
+            wakeLockSentinel.addEventListener('release', () => { wakeLockSentinel = null; updateWakeStatus(); });
+            return true;
+        }
+    } catch (e) {}
+    return false;
+}
+async function deactivateWakeLock() {
+    if (wakeLockSentinel) { try { await wakeLockSentinel.release(); } catch (e) {} wakeLockSentinel = null; }
+}
+function updateWakeStatus() {
+    const el = document.getElementById('wake-status');
+    const txt = document.getElementById('wake-status-text');
+    const btn = document.getElementById('wake-toggle-btn');
+    if (!el) return;
+    const isActive = wakeLockSentinel !== null;
+    if (wakeLockEnabled && isActive) {
+        el.style.background = 'rgba(34,197,94,0.12)'; el.style.color = 'var(--success)';
+        txt.textContent = '✅ Écran allumé'; btn.textContent = 'Désactiver';
+    } else if (wakeLockEnabled) {
+        el.style.background = 'rgba(245,158,11,0.12)'; el.style.color = 'var(--warn)';
+        txt.textContent = '⏳ En attente'; btn.textContent = 'Désactiver';
+    } else {
+        el.style.background = 'rgba(59,130,246,0.12)'; el.style.color = 'var(--info)';
+        txt.textContent = '💤 Veille auto'; btn.textContent = 'Garder l\'écran allumé';
+    }
+}
+async function toggleWakeLock() {
+    if (wakeLockEnabled) {
+        wakeLockEnabled = false; await deactivateWakeLock();
+        try { localStorage.setItem(WAKE_PREF, '0'); } catch (e) {}
+        showToast('Veille auto', 'warn');
+    } else {
+        wakeLockEnabled = true;
+        const ok = await activateWakeLock();
+        try { localStorage.setItem(WAKE_PREF, '1'); } catch (e) {}
+        showToast(ok ? 'Écran allumé' : 'Active manuellement', ok ? 'success' : 'warn');
+    }
+    updateWakeStatus();
+}
+
+/* ═══ MODULE 1 : PROMPT FACTORY ═══ */
+const EPISODES = [
+    { num:1, emoji:'🪞', titre:'Le miroir cassé', hook:'Si tu trouves un miroir cassé chez ta grand-mère… ne le regarde pas deux fois.',
+      imagePrompt:'A large antique cracked mirror in a dusty attic, warm golden sunlight streaming through a small window, floating dust particles, cobwebs, wooden floor, melancholic cinematic atmosphere, anime style illustration, detailed reflections, muted warm tones',
+      videoPrompt:'Animate this mirror scene. The reflection in the cracked mirror moves a split second later than reality. A subtle pendant necklace appears in the reflection that is not there in reality. Cinematic, eerie, nostalgic.',
+      ambiance:'nostalgique' },
+    { num:2, emoji:'✉️', titre:'La lettre sans timbre', hook:'Hier, j\'ai reçu une lettre. Personne ne connaît mon adresse. Personne.',
+      imagePrompt:'An old yellowed envelope sealed with red wax, lying on dark parquet floor, single lit candle casting warm flickering light, mysterious shadows, film noir atmosphere, anime style illustration with vintage tones',
+      videoPrompt:'Animate this mysterious letter scene. A hand slowly reaches toward the letter. Candle flame flickers. Envelope subtly moves as if pushed by invisible wind. Melancholic, suspenseful.',
+      ambiance:'mystérieux' },
+    { num:3, emoji:'🔑', titre:'La clé sous l\'oreiller', hook:'Elle s\'est réveillée avec une clé sous l\'oreiller. Elle vit seule.',
+      imagePrompt:'Small old copper key resting on white pillow in dim bedroom, cold blue moonlight through curtains, mysterious shadows, cinematic framing, minimal composition, anime style with cool atmosphere',
+      videoPrompt:'Animate this quiet bedroom. Moonlight subtly shifts. The key glows faintly then dims. A shadow moves at frame edge. Slow, eerie, contemplative.',
+      ambiance:'inquiétant' },
+    { num:4, emoji:'📸', titre:'La photo qui vieillit', hook:'Cette photo a 3 ans. Regarde les visages. Ils vieillissent chaque nuit.',
+      imagePrompt:'Old family photograph on wooden commode, one corner burnt, warm sepia tones, vintage lamp casting soft yellow light, nostalgic atmosphere, anime style illustration with vintage Super 8 feel',
+      videoPrompt:'Animate this vintage photograph. Faces subtly age in real time. A new face slowly appears in the background. Chilling, melancholic.',
+      ambiance:'mélancolique' },
+    { num:5, emoji:'🚂', titre:'Le train de 4h17', hook:'Le dernier train passe à 23h. Alors pourquoi j\'entends un train à 4h17 ?',
+      imagePrompt:'Deserted train platform at night, thick mist, old station clock reading 4:17, dim yellow lamps, empty tracks disappearing into darkness, cinematic wide shot, anime style with dreamlike misty atmosphere',
+      videoPrompt:'Animate this empty station. A train slowly emerges from the mist, silent, no passengers. Single silhouette visible in one window. Ethereal, dreamlike, eerie.',
+      ambiance:'étrange' },
+    { num:6, emoji:'🎹', titre:'La chanson oubliée', hook:'Je connais cette chanson. Je ne l\'ai jamais apprise.',
+      imagePrompt:'Abandoned old piano in an empty room, dust particles floating in single beam of sunlight, wooden floor, peeling wallpaper, melancholic sepia tones, cinematic side view, anime style illustration with poetic loneliness',
+      videoPrompt:'Animate this abandoned piano. Keys press themselves gently one by one, playing a soft melody. Dust in the light beam shivers. Nostalgic, ghostly, poetic.',
+      ambiance:'nostalgique' },
+    { num:7, emoji:'🍞', titre:'L\'odeur du pain', hook:'J\'habite seule. Ce matin, il y avait du pain chaud sur ma table.',
+      imagePrompt:'Rustic kitchen table with fresh warm bread on wooden board, steam rising gently, soft morning light through window, cozy warm tones, empty chair, feeling of absence yet presence, anime style, warm natural atmosphere',
+      videoPrompt:'Animate this warm kitchen. Steam rises softly from bread. Subtle handwriting appears on a note next to it. Empty chair gently moves as if someone just left. Poetic, mysterious, warm.',
+      ambiance:'chaleureux' },
+    { num:8, emoji:'🌲', titre:'L\'écho dans la forêt', hook:'Ne répondez jamais à un écho. Surtout s\'il répond avant vous.',
+      imagePrompt:'Dense misty forest with narrow dirt path, green filtered light through tall trees, mysterious fog rolling low, Ghibli-inspired natural atmosphere, mystical deep forest, anime style illustration with lush detail',
+      videoPrompt:'Animate this mysterious forest. Mist moves slowly between trees. Leaves rustle as invisible presence passes. Subtle echo effect. Magical, eerie, contemplative.',
+      ambiance:'mystique' },
+    { num:9, emoji:'📓', titre:'Le livre qui s\'écrit', hook:'J\'écris un journal. Mais ce matin, une phrase est apparue. Ce n\'est pas mon écriture.',
+      imagePrompt:'Old leather-bound journal open on wooden desk, quill pen next to it, small bedside lamp casting warm focused light, dark surrounding room, minimalist composition, anime style illustration with intimate mood',
+      videoPrompt:'Animate this quiet desk. Words slowly appear on blank page as if written by invisible hand. Quill pen trembles slightly. Shadow moves behind lamp. Suspenseful, minimalist.',
+      ambiance:'suspense' },
+    { num:10, emoji:'🔓', titre:'La révélation', hook:'Elle a enfin compris. Tous ces objets… viennent du même endroit.',
+      imagePrompt:'All the mysterious objects from previous episodes arranged together on large wooden table: cracked mirror, sealed letter, copper key, old photograph, miniature piano, loaf of bread, open journal. Dramatic cinematic overhead shot, warm spotlight, dark surroundings, epic atmosphere, anime style illustration',
+      videoPrompt:'Animate this final revelation. All objects faintly glow in unison, a map starts forming on the table, dust particles swirl. Camera slowly zooms in. Epic, mystical, cinematic finale.',
+      ambiance:'épique' }
+];
+
+const PF_STATE = {
+    episodes: EPISODES.map(e => ({ ...e, imageUrl: null, status: null })),
+    running: false,
+    stopRequested: false
+};
+
+function renderPF() {
+    const grid = document.getElementById('pf-episodes-grid');
+    if (!grid) return;
+    grid.innerHTML = PF_STATE.episodes.map(ep => {
+        const badgeCls = ep.status === 'done' ? 'ok' : ep.status === 'processing' ? 'processing' : '';
+        const badgeText = ep.status === 'done' ? '✓' : ep.status === 'processing' ? '⏳' : 'prêt';
+        const cardCls = ep.status === 'done' ? 'generated' : ep.status === 'processing' ? 'processing' : '';
+        const imgHTML = ep.imageUrl
+            ? '<img src="' + ep.imageUrl + '">'
+            : '<div class="ep-image-placeholder"><div style="font-size:1.6rem;opacity:0.4;">🖼️</div><div>Non générée</div></div>';
+        return '<div class="episode-card ' + cardCls + '">' +
+            '<div class="ep-header">' +
+                '<div class="ep-num">' + ep.num + '</div>' +
+                '<div class="ep-title-block">' +
+                    '<div class="ep-title"><span>' + ep.emoji + '</span> ' + esc(ep.titre) + '</div>' +
+                    '<div style="font-size:0.66rem;color:var(--ink-dim);">#ep' + ep.num + ' · ' + esc(ep.ambiance) + '</div>' +
+                '</div>' +
+                '<span class="ep-badge ' + badgeCls + '">' + badgeText + '</span>' +
+            '</div>' +
+            '<div class="ep-body">' +
+                '<div class="ep-image-wrap ' + (ep.status === 'processing' ? 'processing' : '') + '">' +
+                    imgHTML +
+                    '<div class="ep-image-overlay"><div class="spinner"></div><div>Génération…</div></div>' +
+                '</div>' +
+                '<div class="ep-field">' +
+                    '<div class="ep-field-label">🎣 Hook <button data-copy="' + ep.num + '">Copier</button></div>' +
+                    '<div class="hook-text">' + esc(ep.hook) + '</div>' +
+                '</div>' +
+                '<div class="ep-field">' +
+                    '<div class="ep-field-label">🖼️ Prompt image</div>' +
+                    '<textarea data-pf="' + ep.num + '" data-field="imagePrompt">' + esc(ep.imagePrompt) + '</textarea>' +
+                '</div>' +
+                '<div class="ep-actions">' +
+                    '<button class="btn btn-primary" data-gen="' + ep.num + '">' +
+                        (ep.status === 'done' ? '🔄 Régénérer' : '🎨 Générer') +
+                    '</button>' +
+                    (ep.imageUrl ? '<button class="btn btn-secondary" data-dl="' + ep.num + '">💾</button>' : '') +
+                    '<button class="btn btn-secondary" data-upload="' + ep.num + '">📤</button>' +
+                '</div>' +
+            '</div>' +
+        '</div>';
+    }).join('');
+
+    const done = PF_STATE.episodes.filter(e => e.status === 'done').length;
+    const pfProgress = document.getElementById('pf-progress');
+    const pfPercent = document.getElementById('pf-percent');
+    if (pfProgress) pfProgress.style.width = (done / 10 * 100) + '%';
+    if (pfPercent) pfPercent.textContent = done + '/10';
+    const badge = document.getElementById('pf-ep-badge');
+    if (badge) {
+        badge.textContent = done + '/10';
+        badge.classList.toggle('ok', done === 10);
+    }
+
+    grid.querySelectorAll('textarea[data-pf]').forEach(ta => {
+        ta.addEventListener('input', e => {
+            const num = parseInt(e.target.dataset.pf, 10);
+            const ep = PF_STATE.episodes.find(x => x.num === num);
+            if (ep) ep[e.target.dataset.field] = e.target.value;
+        });
+    });
+    grid.querySelectorAll('[data-copy]').forEach(b => b.addEventListener('click', e => {
+        e.stopPropagation();
+        const ep = PF_STATE.episodes.find(x => x.num === parseInt(b.dataset.copy, 10));
+        if (ep) { navigator.clipboard.writeText(ep.hook); showToast('Hook copié ✓', 'success', 1200); }
+    }));
+    grid.querySelectorAll('[data-gen]').forEach(b => b.addEventListener('click', e => {
+        e.stopPropagation();
+        const ep = PF_STATE.episodes.find(x => x.num === parseInt(b.dataset.gen, 10));
+        if (ep) generateEpImage(ep);
+    }));
+    grid.querySelectorAll('[data-dl]').forEach(b => b.addEventListener('click', e => {
+        e.stopPropagation();
+        const ep = PF_STATE.episodes.find(x => x.num === parseInt(b.dataset.dl, 10));
+        if (ep) downloadEpImage(ep);
+    }));
+    grid.querySelectorAll('[data-upload]').forEach(b => b.addEventListener('click', e => {
+        e.stopPropagation();
+        const ep = PF_STATE.episodes.find(x => x.num === parseInt(b.dataset.upload, 10));
+        if (ep) uploadEpImage(ep);
+    }));
+}
+
+async function generateEpImage(ep) {
+    if (ep.status === 'processing') return;
+    if (!getApiKey()) { showToast('Clé API manquante', 'warn'); return; }
+    ep.status = 'processing';
+    renderPF();
+    try {
+        const url = await generateImage(ep.imagePrompt, {
+            size: document.getElementById('pf-resolution').value,
+            quality: document.getElementById('pf-quality').value
+        });
+        ep.imageUrl = url;
+        ep.status = 'done';
+    } catch (e) {
+        ep.status = null;
+        dbg('error', 'Épisode ' + ep.num + ' : ' + e.message);
+        showToast('Ép ' + ep.num + ' : ' + e.message.slice(0, 40), 'error', 4000);
+    }
+    renderPF();
+}
+
+async function generateAllEpisodes() {
+    if (PF_STATE.running) return;
+    if (!getApiKey()) { showToast('Clé API manquante', 'warn'); return; }
+    PF_STATE.running = true;
+    PF_STATE.stopRequested = false;
+    document.getElementById('pf-generate-all').disabled = true;
+    document.getElementById('pf-stop-all').classList.add('visible');
+    for (const ep of PF_STATE.episodes) {
+        if (PF_STATE.stopRequested) break;
+        if (ep.status === 'done') continue;
+        await generateEpImage(ep);
+        await sleep(600);
+    }
+    PF_STATE.running = false;
+    PF_STATE.stopRequested = false;
+    document.getElementById('pf-generate-all').disabled = false;
+    document.getElementById('pf-stop-all').classList.remove('visible');
+    const done = PF_STATE.episodes.filter(e => e.status === 'done').length;
+    showToast(done + '/10 images', 'success');
+}
+
+async function downloadEpImage(ep) {
+    if (!ep.imageUrl) return;
+    try {
+        const name = 'episode_' + String(ep.num).padStart(2, '0') + '.png';
+        if (ep.imageUrl.startsWith('data:')) {
+            const a = document.createElement('a'); a.href = ep.imageUrl; a.download = name; a.click();
+        } else {
+            const res = await fetch(ep.imageUrl);
+            const blob = await res.blob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a'); a.href = url; a.download = name; a.click();
+            URL.revokeObjectURL(url);
+        }
+    } catch (e) { showToast('Erreur download', 'error'); }
+}
+
+function uploadEpImage(ep) {
+    const input = document.createElement('input');
+    input.type = 'file'; input.accept = 'image/*';
+    input.onchange = async e => {
+        const file = e.target.files[0];
+        if (!file) return;
+        try {
+            const dataUri = await fileToDataUri(file);
+            ep.imageUrl = dataUri;
+            ep.status = 'done';
+            renderPF();
+            showToast('Image uploadée ✓', 'success');
+        } catch (err) { showToast('Erreur upload', 'error'); }
+    };
+    input.click();
+}
+
+function exportJSONToStoryForge() {
+    const story = "Fragments d'un monde oublié\n\nUne jeune femme découvre chaque nuit un objet qui lui raconte un fragment d'un monde qui n'existe plus.";
+    const stateForSF = {
+        story, storyPrompt: "Fragments d'un monde oublié",
+        script: {
+            titre: "Fragments d'un monde oublié",
+            scenes: PF_STATE.episodes.map(ep => ({
+                num: ep.num, titre: ep.titre,
+                description: ep.imagePrompt,
+                hook: ep.videoPrompt,
+                ambiance: ep.ambiance
+            }))
+        },
+        style: 'cinematic', durationFrames: 121, resolution: '720p',
+        intensity: 'moderate', framing: 'medium', extraPrompt: ''
+    };
+    const blob = new Blob([JSON.stringify(stateForSF, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'storyforge_import.json'; a.click();
+    URL.revokeObjectURL(url);
+    navigator.clipboard.writeText(JSON.stringify(stateForSF)).catch(() => {});
+    showToast('JSON exporté ✓', 'success', 3000);
+}
+
+function downloadAllEpisodes() {
+    PF_STATE.episodes.filter(e => e.status === 'done').forEach((ep, i) => {
+        setTimeout(() => downloadEpImage(ep), i * 400);
+    });
+}
+
+function resetAllEpisodes() {
+    if (!confirm('Effacer toutes les images ?')) return;
+    PF_STATE.episodes.forEach(ep => { ep.imageUrl = null; ep.status = null; });
+    renderPF();
+    showToast('Effacé', 'warn');
+}
+
+/* ═══ MODULE 2 : STORYFORGE ═══ */
+const SF = { story: '', script: null, images: [], videoResults: {}, running: false, stopRequested: false, completed: 0, failed: 0 };
+
+function sfUpdateProgress() {
+    let p = 0;
+    if (SF.story) p += 20;
+    if (SF.script) p += 20;
+    const totalScenes = SF.script ? SF.script.scenes.length : 0;
+    const mapped = SF.images.filter(i => i.sceneIndex !== null).length;
+    if (totalScenes > 0 && mapped > 0) p += Math.round(20 * Math.min(1, mapped / totalScenes));
+    p += 10;
+    if (totalScenes > 0) {
+        const done = Object.values(SF.videoResults).filter(r => r.status === 'done').length;
+        p += Math.round(30 * (done / totalScenes));
+    }
+    const sfP = document.getElementById('sf-progress');
+    const sfPct = document.getElementById('sf-percent');
+    if (sfP) sfP.style.width = Math.min(100, p) + '%';
+    if (sfPct) sfPct.textContent = Math.min(100, p) + '%';
+}
+
+async function sfGenerateStory() {
+    const prompt = document.getElementById('sf-story-prompt').value.trim();
+    if (!prompt) { showToast('Écris un thème', 'warn'); return; }
+    const genre = document.getElementById('sf-genre').value;
+    const length = document.getElementById('sf-length').value;
+    const guides = { court: 'Écris une histoire courte en 4-5 paragraphes.',
+                     moyen: 'Écris une histoire complète en 6-8 paragraphes.',
+                     long: 'Écris une histoire détaillée en 10-12 paragraphes.' };
+    const btn = document.getElementById('sf-gen-story');
+    btn.disabled = true; btn.textContent = '⏳…';
+    setStatus('Écriture…');
+    try {
+        const story = await chatCompletion(
+            'Tu es un écrivain et scénariste. Écris en français avec un style évocateur et visuel.',
+            'Thème : "' + prompt + '"\nGenre : ' + genre + '\n' + guides[length] +
+            '\nÉcris une histoire immersive avec début accrocheur, tension, fin marquante.'
+        );
+        SF.story = story;
+        const out = document.getElementById('sf-story-output');
+        out.classList.remove('empty'); out.classList.add('story');
+        out.textContent = story;
+        showToast('Histoire ✓', 'success');
+        sfUpdateProgress();
+    } catch (e) {
+        showToast('Erreur : ' + e.message.slice(0, 60), 'error', 4000);
+    } finally {
+        btn.disabled = false; btn.textContent = '✨ Générer histoire';
+        setStatus(null);
+    }
+}
+
+async function sfGenerateScript() {
+    if (!SF.story) return;
+    const length = document.getElementById('sf-length').value;
+    const count = { court: '4 à 5', moyen: '6 à 8', long: '10 à 12' }[length] || '6 à 8';
+    const btn = document.getElementById('sf-gen-script');
+    btn.disabled = true; btn.textContent = '⏳…';
+    setStatus('Découpage…');
+    try {
+        const raw = await chatCompletion(
+            'Tu es un scénariste. Réponds EXCLUSIVEMENT avec un objet JSON valide. Commence par { et termine par }. Zéro backtick.',
+            'Histoire :\n\n' + SF.story + '\n\nDécoupe en ' + count + ' scènes.\n\n' +
+            'Format : {"titre":"...","scenes":[{"num":1,"titre":"...","description":"...","hook":"...","ambiance":"..."}]}'
+        );
+        const cleaned = extractJSONFromText(raw);
+        const parsed = JSON.parse(cleaned);
+        if (!parsed.scenes || !Array.isArray(parsed.scenes)) throw new Error('Structure invalide');
+        SF.script = parsed;
+        SF.videoResults = {};
+        sfRenderScript();
+        showToast('Scénario ✓ ' + parsed.scenes.length + ' scènes', 'success');
+        sfUpdateProgress();
+    } catch (e) {
+        showToast('Erreur : ' + e.message.slice(0, 60), 'error', 5000);
+    } finally {
+        btn.disabled = false; btn.textContent = '🎬 Générer scénario';
+        setStatus(null);
+    }
+}
+
+function sfRenderScript() {
+    if (!SF.script) return;
+    const out = document.getElementById('sf-script-output');
+    out.classList.remove('empty');
+    out.textContent = JSON.stringify(SF.script, null, 2);
+    const scenes = document.getElementById('sf-script-scenes');
+    scenes.innerHTML = SF.script.scenes.map((s, i) =>
+        '<div class="scene-card">' +
+            '<div class="scene-num">' + (s.num || i + 1) + '</div>' +
+            '<div class="scene-content">' +
+                '<div class="scene-title">' + esc(s.titre || 'Scène ' + (i + 1)) + '</div>' +
+                '<div class="scene-desc">' + esc(s.description || '') + '</div>' +
+                (s.hook ? '<div class="scene-hook">🎬 ' + esc(s.hook) + '</div>' : '') +
+            '</div>' +
+        '</div>'
+    ).join('');
+    sfRenderSceneMapping();
+}
+
+function sfRenderImages() {
+    const grid = document.getElementById('sf-images-grid');
+    grid.innerHTML = SF.images.map(img => {
+        const cls = (img.sceneIndex !== null ? 'assigned' : '') + (img.publicUrl ? ' uploaded' : '');
+        const lbl = img.sceneIndex !== null ? 'S' + (img.sceneIndex + 1) : '';
+        const badge = img.publicUrl ? '<span class="upload-badge">✓ upl</span>' : '';
+        return '<div class="image-card ' + cls + '" data-id="' + img.id + '" data-scene="' + lbl + '">' +
+            '<img src="' + (img.thumbnail || img.dataUri) + '">' +
+            badge +
+            '<button class="remove-btn" data-remove="' + img.id + '">✕</button>' +
+        '</div>';
+    }).join('');
+    grid.querySelectorAll('.image-card').forEach(card => {
+        card.addEventListener('click', e => {
+            if (e.target.classList.contains('remove-btn')) return;
+            sfImageClick(parseFloat(card.dataset.id));
+        });
+    });
+    grid.querySelectorAll('[data-remove]').forEach(btn => {
+        btn.addEventListener('click', e => {
+            e.stopPropagation();
+            const id = parseFloat(btn.dataset.remove);
+            SF.images = SF.images.filter(i => i.id !== id);
+            sfRenderImages(); sfRenderSceneMapping(); sfUpdateProgress();
+        });
+    });
+}
+
+function sfImageClick(id) {
+    const img = SF.images.find(i => i.id === id);
+    if (!img || !SF.script) return;
+    const total = SF.script.scenes.length;
+    if (img.sceneIndex !== null) img.sceneIndex = null;
+    else {
+        const used = SF.images.filter(i => i.sceneIndex !== null).map(i => i.sceneIndex);
+        let free = 0;
+        while (used.includes(free) && free < total) free++;
+        if (free >= total) { showToast('Toutes les scènes prises', 'warn'); return; }
+        img.sceneIndex = free;
+    }
+    sfRenderImages(); sfRenderSceneMapping(); sfUpdateProgress();
+}
+
+function sfRenderSceneMapping() {
+    const c = document.getElementById('sf-scene-mapping');
+    if (!SF.script) { c.innerHTML = ''; return; }
+    c.innerHTML = SF.script.scenes.map((s, i) => {
+        const img = SF.images.find(x => x.sceneIndex === i);
+        const thumb = img
+            ? '<img class="scene-thumb" src="' + (img.thumbnail || img.dataUri) + '">'
+            : '<div class="scene-thumb placeholder">📷</div>';
+        const r = SF.videoResults[i];
+        let pill = '';
+        if (r) {
+            const cls = { pending: 'pill-pending', processing: 'pill-processing', done: 'pill-done', failed: 'pill-failed' }[r.status] || 'pill-pending';
+            pill = '<span class="scene-status-pill ' + cls + '">' + r.status + '</span>';
+        }
+        return '<div class="scene-card ' + (img ? 'has-image' : '') + '">' +
+            thumb +
+            '<div class="scene-content">' +
+                '<div class="scene-title">' + esc(s.titre || 'Scène ' + (i + 1)) + pill + '</div>' +
+                '<div class="scene-desc">' + esc(s.description || '').slice(0, 150) + '</div>' +
+            '</div>' +
+        '</div>';
+    }).join('');
+}
+
+async function sfHandleFiles(files) {
+    const arr = Array.from(files).filter(f => f.type.startsWith('image/'));
+    for (const f of arr) {
+        const r = await processOneFile(f);
+        if (r) SF.images.push(r);
+    }
+    sfRenderImages(); sfRenderSceneMapping(); sfUpdateProgress();
+    showToast(arr.length + ' image(s) ✓', 'success');
+}
+
+async function sfUploadAllImages() {
+    if (!SF.images.length) { showToast('Aucune image', 'warn'); return; }
+    showToast('Upload en cours…', 'success', 2000);
+    let ok = 0;
+    for (const img of SF.images) {
+        if (img.publicUrl) { ok++; continue; }
+        try {
+            img.publicUrl = await uploadToPublicHost(img.dataUri, 'img_' + Date.now() + '.png');
+            ok++;
+            sfRenderImages();
+        } catch (e) { dbg('error', 'Upload img ' + img.id + ' : ' + e.message); }
+    }
+    showToast(ok + '/' + SF.images.length + ' uploadées', 'success');
+}
+
+function sfAutoMap() {
+    if (!SF.script) return;
+    const total = SF.script.scenes.length;
+    SF.images.forEach((img, i) => { img.sceneIndex = i < total ? i : null; });
+    sfRenderImages(); sfRenderSceneMapping(); sfUpdateProgress();
+    showToast('Auto-map ✓', 'success');
+}
+
+function sfClearMap() {
+    SF.images.forEach(i => { i.sceneIndex = null; });
+    sfRenderImages(); sfRenderSceneMapping(); sfUpdateProgress();
+}
+
+const SF_STYLE = {
+    cinematic: 'cinematic film look, dramatic lighting, subtle film grain, shallow depth of field',
+    'golden-hour': 'golden hour warm sunlight, soft amber glow, long shadows',
+    noir: 'elegant black and white, high contrast monochrome',
+    neon: 'neon-soaked night atmosphere, magenta and cyan accents',
+    dreamy: 'soft pastel color palette, dreamy diffused light, floating particles',
+    vintage: 'vintage Super 8 film aesthetic, grainy texture, subtle vignette',
+    epic: 'epic cinematic scale, dramatic framing, powerful lighting',
+    minimal: 'minimalist composition, single light source, clean negative space',
+    natural: 'natural soft light, realistic tones, gentle contrast'
+};
+const SF_INTENSITY = {
+    subtle: 'very subtle movement, contemplative and quiet',
+    moderate: 'moderate movement, clear but controlled motion',
+    strong: 'strong dynamic movement, energetic motion'
+};
+const SF_FRAMING = {
+    close: 'extreme close-up framing on the subject',
+    medium: 'medium shot, subject framed from waist up',
+    wide: 'wide shot, subject framed with environment visible'
+};
+
+function sfBuildPrompt(scene) {
+    const parts = [];
+    parts.push('Animate this exact image as the starting frame. The subject must remain IDENTICAL: same face, same expression, same clothing, same pose, same identity. Preserve composition.');
+    if (scene.hook) parts.push('Scene action: ' + scene.hook);
+    else if (scene.description) parts.push('Scene context: ' + scene.description);
+    let style = document.getElementById('sf-style').value;
+    if (style === 'random') style = randomItem(Object.keys(SF_STYLE));
+    if (SF_STYLE[style]) parts.push(SF_STYLE[style]);
+    let framing = document.getElementById('sf-framing').value;
+    if (framing === 'random') framing = randomItem(Object.keys(SF_FRAMING));
+    if (SF_FRAMING[framing]) parts.push(SF_FRAMING[framing]);
+    let intensity = document.getElementById('sf-intensity').value;
+    if (intensity === 'random') intensity = randomItem(Object.keys(SF_INTENSITY));
+    if (SF_INTENSITY[intensity]) parts.push(SF_INTENSITY[intensity]);
+    const extra = document.getElementById('sf-extra-prompt').value.trim();
+    if (extra) parts.push('Additional direction: ' + extra);
+    parts.push('Portrait 9:16 vertical, 24fps, no text, no watermarks');
+    return parts.join('. ');
+}
+
+async function sfGenerateAll() {
+    if (SF.running || !SF.script) return;
+    SF.running = true;
+    SF.stopRequested = false;
+    SF.completed = 0; SF.failed = 0;
+    SF.videoResults = {};
+    document.getElementById('sf-gallery').innerHTML = '';
+    document.getElementById('sf-gallery-empty').style.display = '';
+    document.getElementById('sf-generate-all').disabled = true;
+    document.getElementById('sf-stop-all').classList.add('visible');
+    if (wakeLockEnabled) await activateWakeLock();
+
+    const duration = parseInt(document.getElementById('sf-duration').value, 10);
+    const resolution = document.getElementById('sf-resolution').value;
+    const pollingTasks = [];
+
+    for (let i = 0; i < SF.script.scenes.length; i++) {
+        if (SF.stopRequested) break;
+        const img = SF.images.find(x => x.sceneIndex === i);
+        if (!img) { SF.failed++; continue; }
+        SF.videoResults[i] = { status: 'processing', startTime: Date.now() };
+        sfRenderSceneMapping();
+        try {
+            const prompt = sfBuildPrompt(SF.script.scenes[i]);
+            const vid = await createVideoTask(img.dataUri, prompt, { durationFrames: duration, resolution });
+            const idx = i;
+            pollingTasks.push((async () => {
+                try {
+                    const url = await pollVideo(vid, () => {});
+                    SF.videoResults[idx].status = 'done';
+                    SF.videoResults[idx].url = url;
+                    SF.completed++;
+                    sfAddToGallery(url, idx + 1, SF.script.scenes[idx].titre);
+                } catch (e) {
+                    SF.videoResults[idx].status = 'failed';
+                    SF.failed++;
+                    dbg('error', 'Scène ' + (idx + 1) + ' poll : ' + e.message);
+                }
+                sfRenderSceneMapping();
+                sfUpdateProgress();
+            })());
+        } catch (e) {
+            SF.videoResults[i].status = 'failed';
+            SF.failed++;
+            dbg('error', 'Scène ' + (i + 1) + ' : ' + e.message);
+            sfRenderSceneMapping();
+        }
+        if (i < SF.script.scenes.length - 1 && !SF.stopRequested) {
+            for (let r = 45; r > 0; r--) {
+                if (SF.stopRequested) break;
+                setStatus('Pause — ' + r + 's');
+                await sleep(1000);
+            }
+        }
+    }
+
+    if (pollingTasks.length) {
+        setStatus('Finalisation…');
+        await Promise.allSettled(pollingTasks);
+    }
+    setStatus('Terminé — ' + SF.completed + '/' + SF.script.scenes.length);
+    await sleep(3000);
+    setStatus(null);
+    SF.running = false;
+    document.getElementById('sf-generate-all').disabled = false;
+    document.getElementById('sf-stop-all').classList.remove('visible');
+    showToast(SF.completed + ' vidéo(s) ✓', 'success');
+}
+
+function sfAddToGallery(url, num, title) {
+    document.getElementById('sf-gallery-empty').style.display = 'none';
+    const el = document.createElement('div');
+    el.className = 'gallery-item';
+    el.innerHTML =
+        '<div class="hook-badge">Scène ' + num + '</div>' +
+        '<video controls preload="metadata" muted playsinline loop>' +
+        '<source src="' + url + '" type="video/mp4">' +
+        '</video>' +
+        '<div class="g-caption">' + esc(title || 'Scène ' + num) + '</div>';
+    document.getElementById('sf-gallery').appendChild(el);
+}
+
+async function sfImportJSON(file) {
+    try {
+        const text = await file.text();
+        const data = JSON.parse(text);
+        if (data.story) {
+            SF.story = data.story;
+            const out = document.getElementById('sf-story-output');
+            out.classList.remove('empty'); out.classList.add('story');
+            out.textContent = data.story;
+            document.getElementById('sf-story-prompt').value = data.storyPrompt || '';
+        }
+        if (data.script) { SF.script = data.script; sfRenderScript(); }
+        if (data.style) document.getElementById('sf-style').value = data.style;
+        if (data.durationFrames) document.getElementById('sf-duration').value = data.durationFrames;
+        if (data.resolution) document.getElementById('sf-resolution').value = data.resolution;
+        if (data.intensity) document.getElementById('sf-intensity').value = data.intensity;
+        if (data.framing) document.getElementById('sf-framing').value = data.framing;
+        if (data.extraPrompt) document.getElementById('sf-extra-prompt').value = data.extraPrompt;
+        sfUpdateProgress();
+        showToast('Importé ✓', 'success');
+    } catch (e) { showToast('JSON invalide', 'error'); }
+}
+
+/* ═══ MODULE 3 : STUDIO ANIME ═══ */
+const AN = { images: [], selectedEffect: null, running: false, stopRequested: false, mainPrompt: '' };
+const AN_STYLES = {
+    ambiance: [
+        { id: 'shinkai-light', name: 'Lumière Shinkai', emoji: '🌤️', desc: 'Ciel doré', prompt: 'Makoto Shinkai style atmosphere, gorgeous hyper-detailed skies, warm golden hour light, lens flares, nostalgic mood' },
+        { id: 'ghibli-nature', name: 'Nature Ghibli', emoji: '🌿', desc: 'Vert paisible', prompt: 'Studio Ghibli nature atmosphere, lush green foliage, soft dappled sunlight, peaceful healing mood' },
+        { id: 'anime-sunset', name: 'Coucher anime', emoji: '🌇', desc: 'Orange/violet', prompt: 'anime-style sunset sky, intense orange and purple gradient, dramatic shadows, nostalgic mood' },
+        { id: 'rainy', name: 'Pluie', emoji: '🌧️', desc: 'Bleu gris', prompt: 'melancholic rain atmosphere, soft blue-grey tones, water reflections, contemplative mood' },
+        { id: 'sakura', name: 'Sakura', emoji: '🌸', desc: 'Pétales roses', prompt: 'spring cherry blossom atmosphere, pink petals floating, soft warm light, romantic gentle mood' },
+        { id: 'starry', name: 'Nuit étoilée', emoji: '🌌', desc: 'Voie lactée', prompt: 'anime starry night, deep blue sky with milky way, glowing fireflies, magical contemplative mood' }
+    ],
+    stylize: [
+        { id: 'ghibli', name: 'Studio Ghibli', emoji: '🌿', desc: 'Miyazaki', prompt: 'Studio Ghibli animation style, Hayao Miyazaki aesthetic, hand-painted watercolor backgrounds, cel-shaded characters, warm nostalgic colors' },
+        { id: 'shinkai', name: 'Makoto Shinkai', emoji: '💫', desc: 'Ciels sublimes', prompt: 'Makoto Shinkai anime style, breathtakingly detailed skies, photorealistic backgrounds with anime characters, dramatic golden hour' },
+        { id: 'manga-bw', name: 'Manga N&B', emoji: '🖤', desc: 'Encre', prompt: 'black and white Japanese manga style, stark ink outlines, screentones, high contrast shading' },
+        { id: 'anime-90s', name: 'Anime 90s', emoji: '📺', desc: 'Rétro', prompt: '1990s retro anime style, cel-shaded flat colors, visible line art, slight film grain, VHS aesthetic' },
+        { id: 'shonen', name: 'Shōnen', emoji: '⚔️', desc: 'Énergique', prompt: 'shōnen anime style, bold dynamic linework, dramatic action poses, energy effects, intense expressions' },
+        { id: 'shojo', name: 'Shōjo', emoji: '💕', desc: 'Douceur', prompt: 'shōjo anime style, soft pastel palette, sparkles and flower petals, delicate linework, romantic dreamy' },
+        { id: 'chibi', name: 'Chibi', emoji: '🍡', desc: 'Mignon', prompt: 'chibi anime style, cute oversized head, big sparkling eyes, simplified adorable features, kawaii' },
+        { id: 'cyberpunk', name: 'Cyberpunk', emoji: '🌃', desc: 'Néons', prompt: 'cyberpunk anime style, pink and cyan neon lights, wet reflective streets, futuristic urban mood' },
+        { id: 'aquarelle', name: 'Aquarelle', emoji: '🎨', desc: 'Douceur', prompt: 'watercolor anime illustration style, soft bleeding colors, paper texture, delicate brush strokes, poetic dreamy' }
+    ]
+};
+const AN_PRESETS = [
+    { label: '🌸 Fin d\'été', text: 'Scène de fin d\'été au Japon, ciel avec gros cumulus, vent léger, lumière chaude dorée, ambiance nostalgique' },
+    { label: '🌙 Nuit étoilée', text: 'Nuit d\'été étoilée, voie lactée visible, lucioles flottantes, ambiance contemplative' },
+    { label: '🌧️ Pluie', text: 'Jour de pluie douce, gouttes sur les vitres, reflets dans les flaques, ambiance mélancolique' },
+    { label: '🌸 Printemps', text: 'Printemps, pétales de cerisiers volant, lumière rose dorée, ambiance romantique' },
+    { label: '⚔️ Action', text: 'Scène d\'action dynamique, traînées d\'énergie, particules lumineuses, ambiance épique' },
+    { label: '🌊 Mer', text: 'Bord de mer, vagues mourant sur le sable, ciel immense, mouettes, ambiance estivale' }
+];
+
+function anRenderImages() {
+    const grid = document.getElementById('an-images-grid');
+    grid.innerHTML = AN.images.map(img =>
+        '<div class="image-card' + (img.publicUrl ? ' uploaded' : '') + '" data-id="' + img.id + '">' +
+            '<img src="' + (img.thumbnail || img.dataUri) + '">' +
+            (img.publicUrl ? '<span class="upload-badge">✓</span>' : '') +
+            '<button class="remove-btn" data-remove="' + img.id + '">✕</button>' +
+        '</div>'
+    ).join('');
+    grid.querySelectorAll('[data-remove]').forEach(btn => {
+        btn.addEventListener('click', e => {
+            e.stopPropagation();
+            AN.images = AN.images.filter(i => i.id !== parseFloat(btn.dataset.remove));
+            anRenderImages();
+        });
+    });
+}
+function anRenderStyles() {
+    const c = document.getElementById('an-styles-grid');
+    let h = '<div class="no-style-card ' + (AN.selectedEffect === null ? 'selected' : '') + '" data-effect="none">' +
+        (AN.selectedEffect === null ? '✓ Aucun effet' : '🚫 Aucun effet') + '</div>';
+    h += '<div class="style-category-header">🌸 Ambiances anime</div>';
+    h += AN_STYLES.ambiance.map(s =>
+        '<div class="style-card ' + (AN.selectedEffect === s.id ? 'selected' : '') + '" data-effect="' + s.id + '">' +
+            '<div class="style-emoji">' + s.emoji + '</div>' +
+            '<div><div class="style-name">' + esc(s.name) + '</div>' +
+            '<div class="style-desc">' + esc(s.desc) + '</div></div>' +
+        '</div>'
+    ).join('');
+    h += '<div class="style-category-header">🎨 Transformations anime</div>';
+    h += AN_STYLES.stylize.map(s =>
+        '<div class="style-card ' + (AN.selectedEffect === s.id ? 'selected' : '') + '" data-effect="' + s.id + '">' +
+            '<div class="style-emoji">' + s.emoji + '</div>' +
+            '<div><div class="style-name">' + esc(s.name) + '</div>' +
+            '<div class="style-desc">' + esc(s.desc) + '</div></div>' +
+        '</div>'
+    ).join('');
+    c.innerHTML = h;
+    c.querySelectorAll('[data-effect]').forEach(el => {
+        el.addEventListener('click', () => {
+            AN.selectedEffect = el.dataset.effect === 'none' ? null : el.dataset.effect;
+            anRenderStyles();
+        });
+    });
+}
+function anRenderPresets() {
+    const c = document.getElementById('an-prompt-presets');
+    c.innerHTML = AN_PRESETS.map((p, i) => '<div class="chip" data-p="' + i + '">' + esc(p.label) + '</div>').join('');
+    c.querySelectorAll('.chip').forEach(el => {
+        el.addEventListener('click', () => {
+            const p = AN_PRESETS[parseInt(el.dataset.p, 10)];
+            document.getElementById('an-main-prompt').value = p.text;
+            AN.mainPrompt = p.text;
+        });
+    });
+}
+async function anHandleFiles(files) {
+    const arr = Array.from(files).filter(f => f.type.startsWith('image/'));
+    for (const f of arr) {
+        const r = await processOneFile(f);
+        if (r) AN.images.push(r);
+    }
+    anRenderImages();
+    showToast(arr.length + ' image(s) ✓', 'success');
+}
+function anBuildPrompt() {
+    const all = [...AN_STYLES.ambiance, ...AN_STYLES.stylize];
+    const eff = AN.selectedEffect ? all.find(s => s.id === AN.selectedEffect) : null;
+    const isStylize = eff && AN_STYLES.stylize.some(s => s.id === eff.id);
+    const parts = [];
+    if (isStylize) parts.push('Animate this image as starting frame, transforming into anime/manga illustration style. Preserve recognizable features.');
+    else parts.push('Animate this exact image. Preserve subject identity. Only subtle motion, breathing, light and atmosphere with anime-inspired aesthetic.');
+    if (eff) parts.push(eff.prompt);
+    if (AN.mainPrompt.trim()) parts.push('Artistic direction: ' + AN.mainPrompt.trim());
+    parts.push('Portrait 9:16 vertical, 24fps, no text, no watermarks');
+    return parts.join('. ');
+}
+async function anGenerate() {
+    if (AN.running || !AN.images.length) { if (!AN.images.length) showToast('Ajoute des images', 'warn'); return; }
+    AN.running = true; AN.stopRequested = false;
+    document.getElementById('an-generate').disabled = true;
+    document.getElementById('an-stop').classList.add('visible');
+    const duration = parseInt(document.getElementById('an-duration').value, 10);
+    const resolution = document.getElementById('an-resolution').value;
+    const prompt = anBuildPrompt();
+    const pollingTasks = [];
+    for (let i = 0; i < AN.images.length; i++) {
+        if (AN.stopRequested) break;
+        const img = AN.images[i];
+        try {
+            const vid = await createVideoTask(img.dataUri, prompt, { durationFrames: duration, resolution });
+            const idx = i;
+            pollingTasks.push((async () => {
+                try {
+                    const url = await pollVideo(vid, () => {});
+                    anAddToGallery(url, idx + 1);
+                } catch (e) { dbg('error', 'Anime ' + (idx + 1) + ' : ' + e.message); }
+            })());
+        } catch (e) { dbg('error', 'Anime création ' + (i + 1) + ' : ' + e.message); }
+        if (i < AN.images.length - 1 && !AN.stopRequested) {
+            for (let r = 45; r > 0; r--) { if (AN.stopRequested) break; setStatus('Pause… ' + r + 's'); await sleep(1000); }
+        }
+    }
+    if (pollingTasks.length) { setStatus('Finalisation…'); await Promise.allSettled(pollingTasks); }
+    setStatus('Terminé'); await sleep(2500); setStatus(null);
+    AN.running = false; AN.stopRequested = false;
+    document.getElementById('an-generate').disabled = false;
+    document.getElementById('an-stop').classList.remove('visible');
+    showToast('Terminé', 'success');
+}
+function anAddToGallery(url, num) {
+    const el = document.createElement('div');
+    el.className = 'gallery-item';
+    el.innerHTML = '<div class="hook-badge">Anime ' + num + '</div>' +
+        '<video controls preload="metadata" muted playsinline loop><source src="' + url + '" type="video/mp4"></video>';
+    document.getElementById('an-gallery').appendChild(el);
+}
+
+/* ═══ MODULE 4 : HOOK STUDIO ═══ */
+const HK = { images: [], selectedEffect: null, running: false, stopRequested: false, mainPrompt: '' };
+const HK_ARCHETYPES = {
+    attention: [
+        { id: 'regard', name: 'Regard caméra', emoji: '👀', desc: 'Magnétique', prompt: 'Subject stares directly at the camera with intense magnetic eye contact, subtle micro-movement of the head, unbroken gaze' },
+        { id: 'approche', name: 'Il s\'approche', emoji: '🚶', desc: 'Avance', prompt: 'Subject slowly moves toward the camera with deliberate steps, closing distance with viewer, growing tension' },
+        { id: 'retournement', name: 'Retournement', emoji: '🔄', desc: 'Se retourne', prompt: 'Subject turns their head sharply toward the camera in a single fluid motion, sudden reveal' },
+        { id: 'light', name: 'Changement lumière', emoji: '💡', desc: 'Bascule', prompt: 'Dramatic lighting change occurs in a split second, environment shifts from one mood to another' },
+        { id: 'particles', name: 'Particules', emoji: '✨', desc: 'Explosion', prompt: 'Burst of glowing particles, sparks or light motes suddenly emanate around the subject, magical reveal' },
+        { id: 'wind', name: 'Vent puissant', emoji: '🌬️', desc: 'Cheveux volent', prompt: 'Sudden strong wind hits the subject, hair and clothing blown dramatically, sense of raw energy' }
+    ],
+    editing: [
+        { id: 'flash', name: 'Flash cut', emoji: '⚡', desc: 'Coupure', prompt: 'Video starts with a split-second bright white flash then snaps back to the subject, strong visual rupture' },
+        { id: 'zoom-punch', name: 'Zoom punch', emoji: '🎯', desc: 'Zoom rapide', prompt: 'Very fast push-in zoom toward the subject\'s face, creating urgency and focus' },
+        { id: 'glitch', name: 'Glitch', emoji: '📺', desc: 'Distorsion', prompt: 'Digital glitch effect, RGB split, screen tearing for a split second, then the subject appears clear' },
+        { id: 'speed-ramp', name: 'Speed ramp', emoji: '🏃', desc: 'Ralenti+accél', prompt: 'Speed ramp effect: motion starts in extreme slow motion then suddenly accelerates' },
+        { id: 'shake', name: 'Impact', emoji: '📳', desc: 'Secoué', prompt: 'Camera shakes violently for a fraction of a second like an impact, then stabilizes' },
+        { id: 'eye-glow', name: 'Éclat yeux', emoji: '🌟', desc: 'Lueur', prompt: 'A bright unnatural glow flashes briefly in the subject\'s eyes, subtle supernatural hint' }
+    ]
+};
+const HK_PRESETS = [
+    { label: '👀 Regard', text: 'Le sujet fixe intensément la caméra, regard qui accroche immédiatement le spectateur' },
+    { label: '⚡ Sursaut', text: 'Mouvement rapide et inattendu dès la première image, geste brusque qui coupe le scroll' },
+    { label: '🔥 Zoom', text: 'La caméra zoome très rapidement vers le visage, effet d\'urgence et d\'imminence' },
+    { label: '💥 Impact', text: 'Le sujet réagit à quelque chose d\'invisible hors champ : sursaut, yeux écarquillés, surprise' },
+    { label: '🌪️ Brusque', text: 'Mouvement brusque et stylé : cheveux qui volent, tissu qui claque, rotation rapide' },
+    { label: '✨ Révélation', text: 'Particules lumineuses apparaissent soudain autour du sujet, effet wow immédiat' }
+];
+
+function hkRenderImages() {
+    const grid = document.getElementById('hk-images-grid');
+    grid.innerHTML = HK.images.map(img =>
+        '<div class="image-card' + (img.publicUrl ? ' uploaded' : '') + '" data-id="' + img.id + '">' +
+            '<img src="' + (img.thumbnail || img.dataUri) + '">' +
+            (img.publicUrl ? '<span class="upload-badge">✓</span>' : '') +
+            '<button class="remove-btn" data-remove="' + img.id + '">✕</button>' +
+        '</div>'
+    ).join('');
+    grid.querySelectorAll('[data-remove]').forEach(btn => {
+        btn.addEventListener('click', e => {
+            e.stopPropagation();
+            HK.images = HK.images.filter(i => i.id !== parseFloat(btn.dataset.remove));
+            hkRenderImages();
+        });
+    });
+}
+function hkRenderStyles() {
+    const c = document.getElementById('hk-styles-grid');
+    let h = '<div class="no-style-card ' + (HK.selectedEffect === null ? 'selected' : '') + '" data-effect="none">' +
+        (HK.selectedEffect === null ? '✓ Aucun archétype' : '🚫 Aucun') + '</div>';
+    h += '<div class="style-category-header">🎯 Attention</div>';
+    h += HK_ARCHETYPES.attention.map(s =>
+        '<div class="style-card ' + (HK.selectedEffect === s.id ? 'selected' : '') + '" data-effect="' + s.id + '">' +
+            '<div class="style-emoji">' + s.emoji + '</div>' +
+            '<div><div class="style-name">' + esc(s.name) + '</div>' +
+            '<div class="style-desc">' + esc(s.desc) + '</div></div>' +
+        '</div>'
+    ).join('');
+    h += '<div class="style-category-header">⚡ Montage</div>';
+    h += HK_ARCHETYPES.editing.map(s =>
+        '<div class="style-card ' + (HK.selectedEffect === s.id ? 'selected' : '') + '" data-effect="' + s.id + '">' +
+            '<div class="style-emoji">' + s.emoji + '</div>' +
+            '<div><div class="style-name">' + esc(s.name) + '</div>' +
+            '<div class="style-desc">' + esc(s.desc) + '</div></div>' +
+        '</div>'
+    ).join('');
+    c.innerHTML = h;
+    c.querySelectorAll('[data-effect]').forEach(el => {
+        el.addEventListener('click', () => {
+            HK.selectedEffect = el.dataset.effect === 'none' ? null : el.dataset.effect;
+            hkRenderStyles();
+        });
+    });
+}
+function hkRenderPresets() {
+    const c = document.getElementById('hk-prompt-presets');
+    c.innerHTML = HK_PRESETS.map((p, i) => '<div class="chip" data-p="' + i + '">' + esc(p.label) + '</div>').join('');
+    c.querySelectorAll('.chip').forEach(el => {
+        el.addEventListener('click', () => {
+            const p = HK_PRESETS[parseInt(el.dataset.p, 10)];
+            document.getElementById('hk-main-prompt').value = p.text;
+            HK.mainPrompt = p.text;
+        });
+    });
+}
+async function hkHandleFiles(files) {
+    const arr = Array.from(files).filter(f => f.type.startsWith('image/'));
+    for (const f of arr) {
+        const r = await processOneFile(f);
+        if (r) HK.images.push(r);
+    }
+    hkRenderImages();
+    showToast(arr.length + ' ✓', 'success');
+}
+function hkBuildPrompt() {
+    const all = [...HK_ARCHETYPES.attention, ...HK_ARCHETYPES.editing];
+    const eff = HK.selectedEffect ? all.find(s => s.id === HK.selectedEffect) : null;
+    const parts = [];
+    parts.push('Create a TikTok scroll-stopping hook video from this image. 3-4s VERTICAL. Capture attention in first frame. Subject identity must remain recognizable. IMMEDIATE, PUNCHY motion from second zero.');
+    if (eff) parts.push(eff.prompt);
+    if (HK.mainPrompt.trim()) parts.push('Hook direction: ' + HK.mainPrompt.trim());
+    parts.push('Portrait 9:16, 24fps, mobile-first, no text, no watermarks');
+    return parts.join('. ');
+}
+async function hkGenerate() {
+    if (HK.running || !HK.images.length) { if (!HK.images.length) showToast('Ajoute des visuels', 'warn'); return; }
+    HK.running = true; HK.stopRequested = false;
+    document.getElementById('hk-generate').disabled = true;
+    document.getElementById('hk-stop').classList.add('visible');
+    const duration = parseInt(document.getElementById('hk-duration').value, 10);
+    const prompt = hkBuildPrompt();
+    const pollingTasks = [];
+    for (let i = 0; i < HK.images.length; i++) {
+        if (HK.stopRequested) break;
+        const img = HK.images[i];
+        try {
+            const vid = await createVideoTask(img.dataUri, prompt, { durationFrames: duration, resolution: '720p' });
+            const idx = i;
+            pollingTasks.push((async () => {
+                try {
+                    const url = await pollVideo(vid, () => {});
+                    hkAddToGallery(url, idx + 1);
+                } catch (e) { dbg('error', 'Hook ' + (idx + 1) + ' : ' + e.message); }
+            })());
+        } catch (e) { dbg('error', 'Hook ' + (i + 1) + ' : ' + e.message); }
+        if (i < HK.images.length - 1 && !HK.stopRequested) {
+            for (let r = 45; r > 0; r--) { if (HK.stopRequested) break; setStatus('Pause… ' + r + 's'); await sleep(1000); }
+        }
+    }
+    if (pollingTasks.length) { setStatus('Finalisation…'); await Promise.allSettled(pollingTasks); }
+    setStatus('Terminé'); await sleep(2500); setStatus(null);
+    HK.running = false; HK.stopRequested = false;
+    document.getElementById('hk-generate').disabled = false;
+    document.getElementById('hk-stop').classList.remove('visible');
+    showToast('Terminé', 'success');
+}
+function hkAddToGallery(url, num) {
+    const el = document.createElement('div');
+    el.className = 'gallery-item';
+    el.innerHTML = '<div class="hook-badge">Hook ' + num + '</div>' +
+        '<video controls preload="metadata" muted playsinline loop><source src="' + url + '" type="video/mp4"></video>';
+    document.getElementById('hk-gallery').appendChild(el);
+}
+
+/* ═══ INIT ═══ */
+(function init() {
+    dbg('info', 'Nexus Studio — démarrage');
+    initTabs();
+    updateApiPanel();
+
+    document.getElementById('api-save-btn').addEventListener('click', saveApiKey);
+    document.getElementById('api-key-input').addEventListener('keydown', e => {
+        if (e.key === 'Enter') { e.preventDefault(); saveApiKey(); }
+    });
+
+    // Chat
+    const chatSel = document.getElementById('chat-model-select');
+    const chatCustom = document.getElementById('custom-chat-model');
+    const savedChat = getChatModel();
+    const chatOpt = Array.from(chatSel.options).find(o => o.value === savedChat);
+    if (chatOpt) chatSel.value = savedChat;
+    else if (savedChat) { chatSel.value = '__custom__'; chatCustom.style.display = 'block'; chatCustom.value = savedChat; }
+    chatSel.addEventListener('change', e => {
+        if (e.target.value === '__custom__') { chatCustom.style.display = 'block'; chatCustom.focus(); }
+        else { chatCustom.style.display = 'none'; localStorage.setItem(CHAT_STORE, e.target.value); }
+    });
+    chatCustom.addEventListener('input', e => {
+        if (e.target.value.trim()) localStorage.setItem(CHAT_STORE, e.target.value.trim());
+    });
+    document.getElementById('chat-test-btn').addEventListener('click', () => testModel('chat'));
+
+    // Image
+    const imgSel = document.getElementById('image-model-select');
+    const imgCustom = document.getElementById('custom-image-model');
+    const savedImg = getImageModel();
+    const imgOpt = Array.from(imgSel.options).find(o => o.value === savedImg);
+    if (imgOpt) imgSel.value = savedImg;
+    else if (savedImg) { imgSel.value = '__custom__'; imgCustom.style.display = 'block'; imgCustom.value = savedImg; }
+    imgSel.addEventListener('change', e => {
+        if (e.target.value === '__custom__') { imgCustom.style.display = 'block'; imgCustom.focus(); }
+        else { imgCustom.style.display = 'none'; localStorage.setItem(IMG_STORE, e.target.value); }
+    });
+    imgCustom.addEventListener('input', e => {
+        if (e.target.value.trim()) localStorage.setItem(IMG_STORE, e.target.value.trim());
+    });
+    document.getElementById('img-test-btn').addEventListener('click', () => testModel('image'));
+
+    // Video
+    const vidSel = document.getElementById('video-model-select');
+    const vidCustom = document.getElementById('custom-video-model');
+    const savedVid = getVideoModel();
+    const vidOpt = Array.from(vidSel.options).find(o => o.value === savedVid);
+    if (vidOpt) vidSel.value = savedVid;
+    else if (savedVid) { vidSel.value = '__custom__'; vidCustom.style.display = 'block'; vidCustom.value = savedVid; }
+    vidSel.addEventListener('change', e => {
+        if (e.target.value === '__custom__') { vidCustom.style.display = 'block'; vidCustom.focus(); }
+        else { vidCustom.style.display = 'none'; localStorage.setItem(VID_STORE, e.target.value); }
+    });
+    vidCustom.addEventListener('input', e => {
+        if (e.target.value.trim()) localStorage.setItem(VID_STORE, e.target.value.trim());
+    });
+    document.getElementById('vid-test-btn').addEventListener('click', () => testModel('vid'));
+    document.getElementById('vid-debug-btn').addEventListener('click', debugVideoFormats);
+
+    // Uploader
+    document.getElementById('test-upload-btn').addEventListener('click', testUploader);
+
+    // Wake
+    try { wakeLockEnabled = localStorage.getItem(WAKE_PREF) === '1'; } catch (e) {}
+    document.getElementById('wake-toggle-btn').addEventListener('click', toggleWakeLock);
+    if (wakeLockEnabled) activateWakeLock().then(updateWakeStatus);
+    updateWakeStatus();
+
+    document.querySelectorAll('[data-toggle]').forEach(h => {
+        h.addEventListener('click', () => h.parentElement.classList.toggle('open'));
+    });
+
+    document.getElementById('debug-header').addEventListener('click', e => {
+        if (e.target.tagName === 'BUTTON') return;
+        const c = document.getElementById('debug-console');
+        c.classList.toggle('collapsed');
+        document.getElementById('dbg-toggle').textContent = c.classList.contains('collapsed') ? '▲' : '▼';
+    });
+    document.getElementById('dbg-toggle').addEventListener('click', e => {
+        e.stopPropagation();
+        const c = document.getElementById('debug-console');
+        c.classList.toggle('collapsed');
+        e.target.textContent = c.classList.contains('collapsed') ? '▲' : '▼';
+    });
+    document.getElementById('dbg-clear').addEventListener('click', e => {
+        e.stopPropagation();
+        document.getElementById('debug-body').innerHTML = '';
+        Object.keys(debugCounts).forEach(k => debugCounts[k] = 0);
+        document.getElementById('dbg-api').textContent = '0';
+        document.getElementById('dbg-error').textContent = '0';
+    });
+
+    // Prompt Factory
+    renderPF();
+    document.getElementById('pf-generate-all').addEventListener('click', generateAllEpisodes);
+    document.getElementById('pf-stop-all').addEventListener('click', () => { PF_STATE.stopRequested = true; });
+    document.getElementById('pf-export-json').addEventListener('click', exportJSONToStoryForge);
+    document.getElementById('pf-download-all').addEventListener('click', downloadAllEpisodes);
+    document.getElementById('pf-reset-all').addEventListener('click', resetAllEpisodes);
+
+    // StoryForge
+    document.getElementById('sf-gen-story').addEventListener('click', sfGenerateStory);
+    document.getElementById('sf-gen-script').addEventListener('click', sfGenerateScript);
+    document.getElementById('sf-upload-zone').addEventListener('click', () => document.getElementById('sf-file-input').click());
+    document.getElementById('sf-file-input').addEventListener('change', e => { sfHandleFiles(e.target.files); e.target.value = ''; });
+    document.getElementById('sf-auto-map').addEventListener('click', sfAutoMap);
+    document.getElementById('sf-clear-map').addEventListener('click', sfClearMap);
+    document.getElementById('sf-upload-all').addEventListener('click', sfUploadAllImages);
+    document.getElementById('sf-generate-all').addEventListener('click', sfGenerateAll);
+    document.getElementById('sf-stop-all').addEventListener('click', () => { SF.stopRequested = true; });
+    document.getElementById('sf-import-json').addEventListener('click', () => document.getElementById('sf-import-file').click());
+    document.getElementById('sf-import-file').addEventListener('change', e => {
+        if (e.target.files[0]) sfImportJSON(e.target.files[0]);
+        e.target.value = '';
+    });
+
+    // Anime
+    anRenderStyles(); anRenderPresets();
+    document.getElementById('an-upload-zone').addEventListener('click', () => document.getElementById('an-file-input').click());
+    document.getElementById('an-file-input').addEventListener('change', e => { anHandleFiles(e.target.files); e.target.value = ''; });
+    document.getElementById('an-main-prompt').addEventListener('input', e => { AN.mainPrompt = e.target.value; });
+    document.getElementById('an-generate').addEventListener('click', anGenerate);
+    document.getElementById('an-stop').addEventListener('click', () => { AN.stopRequested = true; });
+
+    // Hook
+    hkRenderStyles(); hkRenderPresets();
+    document.getElementById('hk-upload-zone').addEventListener('click', () => document.getElementById('hk-file-input').click());
+    document.getElementById('hk-file-input').addEventListener('change', e => { hkHandleFiles(e.target.files); e.target.value = ''; });
+    document.getElementById('hk-main-prompt').addEventListener('input', e => { HK.mainPrompt = e.target.value; });
+    document.getElementById('hk-generate').addEventListener('click', hkGenerate);
+    document.getElementById('hk-stop').addEventListener('click', () => { HK.stopRequested = true; });
+
+    dbg('success', '✅ Nexus Studio prêt');
+})();
+</script>
+
+</body>
+</html>
